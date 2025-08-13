@@ -1,0 +1,375 @@
+-- خدمات
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- متغيرات
+local targetPrefix = ""
+local bangingBack = false
+local bangingFront = false
+local followConnBack = nil
+local followConnFront = nil
+local animTrackBack = nil
+local animTrackFront = nil
+local ANIM_ID = "rbxassetid://127193965947477"
+local BANG_SPEED = 60
+local BASE_DISTANCE = 1.2
+local OSCILLATION_RANGE = 0.5
+local OSCILLATION_SPEED = 3
+local timeElapsedBack = 0
+local timeElapsedFront = 0
+
+-- وظائف عامة
+local function getGuiParent()
+    if gethui then
+        local ok, ui = pcall(gethui)
+        if ok and ui then return ui end
+    end
+    return game:GetService("CoreGui")
+end
+
+local function findTargetByPrefix(prefix)
+    prefix = (prefix or ""):lower()
+    if prefix == "" then return nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Name:lower():sub(1, #prefix) == prefix then
+            return p
+        end
+    end
+    return nil
+end
+
+local function playAnim()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return nil end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = hum
+    end
+    local anim = Instance.new("Animation")
+    anim.AnimationId = ANIM_ID
+    local track = animator:LoadAnimation(anim)
+    track:Play()
+    track.Looped = true
+    return track
+end
+
+local function stopAnim(track)
+    if track then
+        pcall(function() track:Stop() end)
+    end
+end
+
+-- Bang الخلفي
+local function startBangBack()
+    if bangingBack then return end
+    local target = findTargetByPrefix(targetPrefix)
+    if not target or not target.Character then
+        warn("لا يوجد لاعب بهذا الاسم.")
+        return
+    end
+    animTrackBack = playAnim()
+    bangingBack = true
+    timeElapsedBack = 0
+    if followConnBack then followConnBack:Disconnect() end
+    followConnBack = RunService.Heartbeat:Connect(function(dt)
+        if not bangingBack then return end
+        local myChar = LocalPlayer.Character
+        local tChar = target.Character
+        if not (myChar and tChar) then return end
+        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+        local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+        if not (myRoot and tRoot) then return end
+        timeElapsedBack = timeElapsedBack + dt
+        local oscillation = math.sin(timeElapsedBack * OSCILLATION_SPEED) * OSCILLATION_RANGE
+        local desiredPos = tRoot.Position - (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
+        local moveDir = (desiredPos - myRoot.Position)
+        if moveDir.Magnitude > 0.05 then
+            myRoot.CFrame = CFrame.new(
+                myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
+                tRoot.Position
+            )
+        end
+    end)
+end
+
+local function stopBangBack()
+    bangingBack = false
+    if followConnBack then followConnBack:Disconnect() end
+    stopAnim(animTrackBack)
+    animTrackBack = nil
+end
+
+-- Bang الأمامي
+local function startBangFront()
+    if bangingFront then return end
+    local target = findTargetByPrefix(targetPrefix)
+    if not target or not target.Character then
+        warn("لا يوجد لاعب بهذا الاسم.")
+        return
+    end
+    animTrackFront = playAnim()
+    bangingFront = true
+    timeElapsedFront = 0
+    if followConnFront then followConnFront:Disconnect() end
+    followConnFront = RunService.Heartbeat:Connect(function(dt)
+        if not bangingFront then return end
+        local myChar = LocalPlayer.Character
+        local tChar = target.Character
+        if not (myChar and tChar) then return end
+        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+        local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+        if not (myRoot and tRoot) then return end
+        timeElapsedFront = timeElapsedFront + dt
+        local oscillation = math.sin(timeElapsedFront * OSCILLATION_SPEED) * OSCILLATION_RANGE
+        local desiredPos = tRoot.Position + (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
+        local moveDir = (desiredPos - myRoot.Position)
+        if moveDir.Magnitude > 0.05 then
+            myRoot.CFrame = CFrame.new(
+                myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
+                tRoot.Position
+            )
+        end
+    end)
+end
+
+local function stopBangFront()
+    bangingFront = false
+    if followConnFront then followConnFront:Disconnect() end
+    stopAnim(animTrackFront)
+    animTrackFront = nil
+end
+
+-- UI
+do
+    local parent = getGuiParent()
+    local old = parent:FindFirstChild("BangUI")
+    if old then old:Destroy() end
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BangUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = getGuiParent()
+
+local OpenBtn = Instance.new("TextButton", ScreenGui)
+OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+OpenBtn.Position = UDim2.new(0, 20, 0, 200)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+OpenBtn.Text = "☰"
+OpenBtn.TextScaled = true
+OpenBtn.TextColor3 = Color3.new(1,1,1)
+OpenBtn.Active = true
+OpenBtn.Draggable = true
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+
+local Panel = Instance.new("Frame", ScreenGui)
+Panel.Size = UDim2.new(0, 210, 0, 320)
+Panel.Position = UDim2.new(0, 100, 0, 100)
+Panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+Panel.Visible = false
+Panel.Active = true
+Panel.Draggable = true
+Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 10)
+
+local function makeBox(placeholder, posY)
+    local box = Instance.new("TextBox", Panel)
+    box.PlaceholderText = placeholder
+    box.Size = UDim2.new(1, -14, 0, 22)
+    box.Position = UDim2.new(0, 7, 0, posY)
+    box.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    box.TextColor3 = Color3.new(1, 1, 1)
+    box.TextSize = 12
+    box.ClearTextOnFocus = false
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    return box
+end
+
+-- إنشاء الزر لعرض آخر ID
+local animBtn = Instance.new("TextButton", main)
+animBtn.Position = UDim2.new(0, 120, 0, 80)
+animBtn.Size = UDim2.new(0, 80, 0, 30)
+animBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
+animBtn.TextColor3 = Color3.new(1,1,1)
+animBtn.Text = "—"
+
+-- متغير لحفظ آخر ID
+local currentAnimId = nil
+
+-- لما يبدأ أي أنيميشن جديد
+animator.AnimationPlayed:Connect(function(track)
+    if track and track.Animation and track.Animation.AnimationId then
+        local id = string.match(track.Animation.AnimationId, "%d+")
+        if id then
+            currentAnimId = id
+            animBtn.Text = id
+        end
+    end
+end)
+
+-- نسخ الـ ID
+animBtn.MouseButton1Click:Connect(function()
+    if currentAnimId then
+        if setclipboard then
+            setclipboard(currentAnimId)
+            print("تم نسخ Animation ID:", currentAnimId)
+        else
+            warn("Clipboard غير مدعوم")
+        end
+    else
+        warn("مافي أي أنيميشن شغال")
+    end
+end)
+
+-- باقي التكست بوكس
+local InputName = makeBox("أول حرفين من اسم اللاعب", 38)
+local InputSpeed = makeBox("سرعة Bang", 66)
+local InputAnim = makeBox("ID أنيميشن Bang", 94)
+local InputBaseDist = makeBox("المسافة الأساسية", 122)
+local InputOscRange = makeBox("مدى الارتداد", 150)
+local InputOscSpeed = makeBox("سرعة الارتداد", 178)
+local InputAnimSpeed = makeBox("سرعة الأنيميشن", 206)
+
+-- أزرار
+local ApplyAnimSpeedBtn = Instance.new("TextButton", Panel)
+ApplyAnimSpeedBtn.Size = UDim2.new(1, -14, 0, 24)
+ApplyAnimSpeedBtn.Position = UDim2.new(0, 7, 0, 234)
+ApplyAnimSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
+ApplyAnimSpeedBtn.Text = "تطبيق السرعة"
+ApplyAnimSpeedBtn.TextColor3 = Color3.new(1, 1, 1)
+ApplyAnimSpeedBtn.TextSize = 12
+Instance.new("UICorner", ApplyAnimSpeedBtn).CornerRadius = UDim.new(0, 6)
+
+local FreezeAnimBtn = Instance.new("TextButton", Panel)
+FreezeAnimBtn.Size = UDim2.new(1, -14, 0, 24)
+FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 262)
+FreezeAnimBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+FreezeAnimBtn.Text = "تجميد الأنيميشن"
+FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
+FreezeAnimBtn.TextSize = 12
+Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
+
+local StartBtnBack = Instance.new("TextButton", Panel)
+StartBtnBack.Size = UDim2.new(1, -14, 0, 24)
+StartBtnBack.Position = UDim2.new(0, 7, 0, 290)
+StartBtnBack.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+StartBtnBack.Text = "تشغيل Bang خلفي"
+StartBtnBack.TextColor3 = Color3.new(1, 1, 1)
+StartBtnBack.TextSize = 12
+Instance.new("UICorner", StartBtnBack).CornerRadius = UDim.new(0, 6)
+
+local StartBtnFront = Instance.new("TextButton", Panel)
+StartBtnFront.Size = UDim2.new(1, -14, 0, 24)
+StartBtnFront.Position = UDim2.new(0, 7, 0, 318)
+StartBtnFront.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+StartBtnFront.Text = "تشغيل Bang أمامي"
+StartBtnFront.TextColor3 = Color3.new(1, 1, 1)
+StartBtnFront.TextSize = 12
+Instance.new("UICorner", StartBtnFront).CornerRadius = UDim.new(0, 6)
+
+local StopBtn = Instance.new("TextButton", Panel)
+StopBtn.Size = UDim2.new(1, -14, 0, 24)
+StopBtn.Position = UDim2.new(0, 7, 0, 346)
+StopBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+StopBtn.Text = "إيقاف الكل"
+StopBtn.TextColor3 = Color3.new(1, 1, 1)
+StopBtn.TextSize = 12
+Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
+
+-- تحديث الزر برقم الأنيميشن فقط
+RunService.Heartbeat:Connect(function()
+    local currentTrack = animTrackBack or animTrackFront
+    if currentTrack and currentTrack.Animation then
+        local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
+        CopyAnimIdBtn.Text = id or "..."
+    else
+        CopyAnimIdBtn.Text = "..."
+    end
+end)
+
+-- نسخ الرقم عند الضغط
+CopyAnimIdBtn.MouseButton1Click:Connect(function()
+    local currentTrack = animTrackBack or animTrackFront
+    if currentTrack and currentTrack.Animation then
+        local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
+        if id then setclipboard(id) end
+    end
+end)
+
+-- أزرار التحكم
+ApplyAnimSpeedBtn.MouseButton1Click:Connect(function()
+    local val = tonumber(InputAnimSpeed.Text)
+    if val and val > 0 then
+        local currentTrack = animTrackBack or animTrackFront
+        if currentTrack then
+            currentTrack:AdjustSpeed(val)
+        end
+    end
+end)
+
+FreezeAnimBtn.MouseButton1Click:Connect(function()
+    local currentTrack = animTrackBack or animTrackFront
+    if currentTrack then
+        currentTrack:AdjustSpeed(0)
+    end
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    Panel.Visible = not Panel.Visible
+end)
+
+InputName.FocusLost:Connect(function()
+    targetPrefix = InputName.Text:lower()
+end)
+
+InputSpeed.FocusLost:Connect(function()
+    local val = tonumber(InputSpeed.Text)
+    if val and val > 0 then
+        BANG_SPEED = val
+    end
+end)
+
+InputAnim.FocusLost:Connect(function()
+    if InputAnim.Text ~= "" then
+        ANIM_ID = "rbxassetid://" .. tostring(InputAnim.Text)
+    end
+end)
+
+InputBaseDist.FocusLost:Connect(function()
+    local val = tonumber(InputBaseDist.Text)
+    if val then
+        BASE_DISTANCE = val
+    end
+end)
+
+InputOscRange.FocusLost:Connect(function()
+    local val = tonumber(InputOscRange.Text)
+    if val then
+        OSCILLATION_RANGE = val
+    end
+end)
+
+InputOscSpeed.FocusLost:Connect(function()
+    local val = tonumber(InputOscSpeed.Text)
+    if val then
+        OSCILLATION_SPEED = val
+    end
+end)
+
+StartBtnBack.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    startBangBack()
+end)
+
+StartBtnFront.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    startBangFront()
+end)
+
+StopBtn.MouseButton1Click:Connect(function()
+    stopBangBack()
+    stopBangFront()
+end)
