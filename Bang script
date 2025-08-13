@@ -167,7 +167,7 @@ OpenBtn.Draggable = true
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
 local Panel = Instance.new("Frame", ScreenGui)
-Panel.Size = UDim2.new(0, 210, 0, 320)
+Panel.Size = UDim2.new(0, 210, 0, 400)
 Panel.Position = UDim2.new(0, 100, 0, 100)
 Panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Panel.Visible = false
@@ -188,41 +188,15 @@ local function makeBox(placeholder, posY)
     return box
 end
 
--- إنشاء الزر لعرض آخر ID
-local animBtn = Instance.new("TextButton", main)
-animBtn.Position = UDim2.new(0, 120, 0, 80)
-animBtn.Size = UDim2.new(0, 80, 0, 30)
-animBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
-animBtn.TextColor3 = Color3.new(1,1,1)
-animBtn.Text = "—"
-
--- متغير لحفظ آخر ID
-local currentAnimId = nil
-
--- لما يبدأ أي أنيميشن جديد
-animator.AnimationPlayed:Connect(function(track)
-    if track and track.Animation and track.Animation.AnimationId then
-        local id = string.match(track.Animation.AnimationId, "%d+")
-        if id then
-            currentAnimId = id
-            animBtn.Text = id
-        end
-    end
-end)
-
--- نسخ الـ ID
-animBtn.MouseButton1Click:Connect(function()
-    if currentAnimId then
-        if setclipboard then
-            setclipboard(currentAnimId)
-            print("تم نسخ Animation ID:", currentAnimId)
-        else
-            warn("Clipboard غير مدعوم")
-        end
-    else
-        warn("مافي أي أنيميشن شغال")
-    end
-end)
+-- زر عرض ونسخ ID الأنيميشن
+local CopyAnimIdBtn = Instance.new("TextButton", Panel)
+CopyAnimIdBtn.Size = UDim2.new(1, -14, 0, 24)
+CopyAnimIdBtn.Position = UDim2.new(0, 7, 0, 8)
+CopyAnimIdBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+CopyAnimIdBtn.TextColor3 = Color3.new(1, 1, 1)
+CopyAnimIdBtn.TextSize = 12
+CopyAnimIdBtn.Text = "..."
+Instance.new("UICorner", CopyAnimIdBtn).CornerRadius = UDim.new(0, 6)
 
 -- باقي التكست بوكس
 local InputName = makeBox("أول حرفين من اسم اللاعب", 38)
@@ -231,30 +205,11 @@ local InputAnim = makeBox("ID أنيميشن Bang", 94)
 local InputBaseDist = makeBox("المسافة الأساسية", 122)
 local InputOscRange = makeBox("مدى الارتداد", 150)
 local InputOscSpeed = makeBox("سرعة الارتداد", 178)
-local InputAnimSpeed = makeBox("سرعة الأنيميشن", 206)
 
--- أزرار
-local ApplyAnimSpeedBtn = Instance.new("TextButton", Panel)
-ApplyAnimSpeedBtn.Size = UDim2.new(1, -14, 0, 24)
-ApplyAnimSpeedBtn.Position = UDim2.new(0, 7, 0, 234)
-ApplyAnimSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
-ApplyAnimSpeedBtn.Text = "تطبيق السرعة"
-ApplyAnimSpeedBtn.TextColor3 = Color3.new(1, 1, 1)
-ApplyAnimSpeedBtn.TextSize = 12
-Instance.new("UICorner", ApplyAnimSpeedBtn).CornerRadius = UDim.new(0, 6)
-
-local FreezeAnimBtn = Instance.new("TextButton", Panel)
-FreezeAnimBtn.Size = UDim2.new(1, -14, 0, 24)
-FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 262)
-FreezeAnimBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
-FreezeAnimBtn.Text = "تجميد الأنيميشن"
-FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
-FreezeAnimBtn.TextSize = 12
-Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
-
+-- الأزرار العادية
 local StartBtnBack = Instance.new("TextButton", Panel)
 StartBtnBack.Size = UDim2.new(1, -14, 0, 24)
-StartBtnBack.Position = UDim2.new(0, 7, 0, 290)
+StartBtnBack.Position = UDim2.new(0, 7, 0, 206)
 StartBtnBack.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
 StartBtnBack.Text = "تشغيل Bang خلفي"
 StartBtnBack.TextColor3 = Color3.new(1, 1, 1)
@@ -263,7 +218,7 @@ Instance.new("UICorner", StartBtnBack).CornerRadius = UDim.new(0, 6)
 
 local StartBtnFront = Instance.new("TextButton", Panel)
 StartBtnFront.Size = UDim2.new(1, -14, 0, 24)
-StartBtnFront.Position = UDim2.new(0, 7, 0, 318)
+StartBtnFront.Position = UDim2.new(0, 7, 0, 234)
 StartBtnFront.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 StartBtnFront.Text = "تشغيل Bang أمامي"
 StartBtnFront.TextColor3 = Color3.new(1, 1, 1)
@@ -272,14 +227,35 @@ Instance.new("UICorner", StartBtnFront).CornerRadius = UDim.new(0, 6)
 
 local StopBtn = Instance.new("TextButton", Panel)
 StopBtn.Size = UDim2.new(1, -14, 0, 24)
-StopBtn.Position = UDim2.new(0, 7, 0, 346)
+StopBtn.Position = UDim2.new(0, 7, 0, 262)
 StopBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 StopBtn.Text = "إيقاف الكل"
 StopBtn.TextColor3 = Color3.new(1, 1, 1)
 StopBtn.TextSize = 12
 Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
 
--- تحديث الزر برقم الأنيميشن فقط
+-- تكست بوكس سرعة الأنيميشن + زر تطبيق + زر تجميد
+local InputAnimSpeed = makeBox("سرعة الأنيميشن", 290)
+
+local ApplyAnimSpeedBtn = Instance.new("TextButton", Panel)
+ApplyAnimSpeedBtn.Size = UDim2.new(1, -14, 0, 24)
+ApplyAnimSpeedBtn.Position = UDim2.new(0, 7, 0, 318)
+ApplyAnimSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
+ApplyAnimSpeedBtn.Text = "تطبيق السرعة"
+ApplyAnimSpeedBtn.TextColor3 = Color3.new(1, 1, 1)
+ApplyAnimSpeedBtn.TextSize = 12
+Instance.new("UICorner", ApplyAnimSpeedBtn).CornerRadius = UDim.new(0, 6)
+
+local FreezeAnimBtn = Instance.new("TextButton", Panel)
+FreezeAnimBtn.Size = UDim2.new(1, -14, 0, 24)
+FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 346)
+FreezeAnimBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+FreezeAnimBtn.Text = "تجميد الأنيميشن"
+FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
+FreezeAnimBtn.TextSize = 12
+Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
+
+-- تحديث زر ID
 RunService.Heartbeat:Connect(function()
     local currentTrack = animTrackBack or animTrackFront
     if currentTrack and currentTrack.Animation then
@@ -290,10 +266,89 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- نسخ الرقم عند الضغط
+-- نسخ ID
 CopyAnimIdBtn.MouseButton1Click:Connect(function()
     local currentTrack = animTrackBack or animTrackFront
     if currentTrack and currentTrack.Animation then
+        local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
+        if id then setclipboard(id) end
+    end
+end)
+
+-- أزرار التحكم
+ApplyAnimSpeedBtn.MouseButton1Click:Connect(function()
+    local val = tonumber(InputAnimSpeed.Text)
+    if val and val > 0 then
+        local currentTrack = animTrackBack or animTrackFront
+        if currentTrack then
+            currentTrack:AdjustSpeed(val)
+        end
+    end
+end)
+
+FreezeAnimBtn.MouseButton1Click:Connect(function()
+    local currentTrack = animTrackBack or animTrackFront
+    if currentTrack then
+        currentTrack:AdjustSpeed(0)
+    end
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    Panel.Visible = not Panel.Visible
+end)
+
+InputName.FocusLost:Connect(function()
+    targetPrefix = InputName.Text:lower()
+end)
+
+InputSpeed.FocusLost:Connect(function()
+    local val = tonumber(InputSpeed.Text)
+    if val and val > 0 then
+        BANG_SPEED = val
+    end
+end)
+
+InputAnim.FocusLost:Connect(function()
+    if InputAnim.Text ~= "" then
+        ANIM_ID = "rbxassetid://" .. tostring(InputAnim.Text)
+    end
+end)
+
+InputBaseDist.FocusLost:Connect(function()
+    local val = tonumber(InputBaseDist.Text)
+    if val then
+        BASE_DISTANCE = val
+    end
+end)
+
+InputOscRange.FocusLost:Connect(function()
+    local val = tonumber(InputOscRange.Text)
+    if val then
+        OSCILLATION_RANGE = val
+    end
+end)
+
+InputOscSpeed.FocusLost:Connect(function()
+    local val = tonumber(InputOscSpeed.Text)
+    if val then
+        OSCILLATION_SPEED = val
+    end
+end)
+
+StartBtnBack.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    startBangBack()
+end)
+
+StartBtnFront.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    startBangFront()
+end)
+
+StopBtn.MouseButton1Click:Connect(function()
+    stopBangBack()
+    stopBangFront()
+end)then
         local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
         if id then setclipboard(id) end
     end
