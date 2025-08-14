@@ -255,23 +255,32 @@ FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
 FreezeAnimBtn.TextSize = 12
 Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
 
--- تحديث زر ID
+-- تحديث زر ID بحيث يعرض آخر أنيميشن اشتغل على اللاعب
 RunService.Heartbeat:Connect(function()
-    local currentTrack = animTrackBack or animTrackFront
-    if currentTrack and currentTrack.Animation then
-        local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
-        CopyAnimIdBtn.Text = id or "..."
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then return end
+    
+    local playingTracks = animator:GetPlayingAnimationTracks()
+    if #playingTracks > 0 then
+        -- ناخذ آخر أنيميشن في القائمة (عادة هو الأحدث)
+        local lastTrack = playingTracks[#playingTracks]
+        if lastTrack and lastTrack.Animation then
+            local id = tostring(lastTrack.Animation.AnimationId):match("%d+")
+            CopyAnimIdBtn.Text = id or "..."
+        end
     else
         CopyAnimIdBtn.Text = "..."
     end
 end)
 
--- نسخ ID
+-- نسخ كل الـ Animation IDs الظاهرة على الزر
 CopyAnimIdBtn.MouseButton1Click:Connect(function()
-    local currentTrack = animTrackBack or animTrackFront
-    if currentTrack and currentTrack.Animation then
-        local id = tostring(currentTrack.Animation.AnimationId):match("%d+")
-        if id then setclipboard(id) end
+    if CopyAnimIdBtn.Text and CopyAnimIdBtn.Text ~= "..." then
+        setclipboard(CopyAnimIdBtn.Text)
     end
 end)
 
