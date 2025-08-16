@@ -1,0 +1,168 @@
+local NEW_POSITION = Vector3.new(0, 0, 0)
+local NEW_ROTATION = {0, 0, 0}
+
+local function findToolInCharacter()
+	local player = game.Players.LocalPlayer
+	if player and player.Character then
+		for _, child in pairs(player.Character:GetChildren()) do
+			if child:IsA("Tool") then
+				return child
+			end
+		end
+	end
+	return nil
+end
+
+local function setToolGrip(tool, position, roll, pitch, yaw)
+	local rotation = CFrame.Angles(math.rad(roll), math.rad(pitch), math.rad(yaw))
+	tool.Grip = CFrame.new(position) * rotation
+end
+
+local function reEquipTool(tool)
+	local player = game.Players.LocalPlayer
+	local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+	if humanoid and tool then
+		humanoid:UnequipTools()
+		humanoid:EquipTool(tool)
+	end
+end
+
+local function makeDraggable(uiElement)
+	local dragging = false
+	local dragOffset = Vector2.new()
+	local UIS = game:GetService("UserInputService")
+	uiElement.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragOffset = UIS:GetMouseLocation() - uiElement.AbsolutePosition
+		end
+	end)
+	uiElement.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	game:GetService("RunService").RenderStepped:Connect(function()
+		if dragging then
+			local mouse = UIS:GetMouseLocation()
+			uiElement.Position = UDim2.new(0, mouse.X - dragOffset.X, 0, mouse.Y - dragOffset.Y)
+		end
+	end)
+end
+
+local function createUI()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 320, 0, 300)
+	frame.Position = UDim2.new(0.5, -160, 0.5, -150)
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	frame.BackgroundTransparency = 0.1
+	frame.Parent = screenGui
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+	local title = Instance.new("TextLabel")
+	title.Text = "Tool Grip Editor"
+	title.Size = UDim2.new(1, 0, 0, 35)
+	title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.SourceSansBold
+	title.TextSize = 20
+	title.Parent = frame
+	Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+
+	local function makeLabel(text, yPos)
+		local lbl = Instance.new("TextLabel")
+		lbl.Text = text
+		lbl.Size = UDim2.new(0.8, 0, 0, 20)
+		lbl.Position = UDim2.new(0.1, 0, yPos, 0)
+		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.SourceSans
+		lbl.TextSize = 16
+		lbl.Parent = frame
+		return lbl
+	end
+
+	local function makeInput(placeholder, xPos, yPos)
+		local box = Instance.new("TextBox")
+		box.PlaceholderText = placeholder
+		box.Size = UDim2.new(0.2, 0, 0, 28)
+		box.Position = UDim2.new(xPos, 0, yPos, 0)
+		box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		box.TextColor3 = Color3.fromRGB(255, 255, 255)
+		box.ClearTextOnFocus = false
+		box.Font = Enum.Font.SourceSans
+		box.TextSize = 16
+		box.Parent = frame
+		Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+		return box
+	end
+
+	makeLabel("Position (X, Y, Z):", 0.15)
+	local xInput = makeInput("X", 0.1, 0.25)
+	local yInput = makeInput("Y", 0.4, 0.25)
+	local zInput = makeInput("Z", 0.7, 0.25)
+
+	makeLabel("Rotation (Roll, Pitch, Yaw):", 0.45)
+	local rollInput = makeInput("Roll", 0.1, 0.55)
+	local pitchInput = makeInput("Pitch", 0.4, 0.55)
+	local yawInput = makeInput("Yaw", 0.7, 0.55)
+
+	local applyButton = Instance.new("TextButton")
+	applyButton.Text = "Apply Changes"
+	applyButton.Size = UDim2.new(0.8, 0, 0, 40)
+	applyButton.Position = UDim2.new(0.1, 0, 0.75, 0)
+	applyButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+	applyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	applyButton.Font = Enum.Font.SourceSansBold
+	applyButton.TextSize = 18
+	applyButton.Parent = frame
+	Instance.new("UICorner", applyButton).CornerRadius = UDim.new(0, 8)
+
+	applyButton.MouseButton1Click:Connect(function()
+		local tool = findToolInCharacter()
+		if tool then
+			local x = tonumber(xInput.Text) or NEW_POSITION.X
+			local y = tonumber(yInput.Text) or NEW_POSITION.Y
+			local z = tonumber(zInput.Text) or NEW_POSITION.Z
+			local roll = tonumber(rollInput.Text) or NEW_ROTATION[1]
+			local pitch = tonumber(pitchInput.Text) or NEW_ROTATION[2]
+			local yaw = tonumber(yawInput.Text) or NEW_ROTATION[3]
+			setToolGrip(tool, Vector3.new(x, y, z), roll, pitch, yaw)
+			reEquipTool(tool)
+		end
+	end)
+
+	local toggleButton = Instance.new("TextButton")
+	toggleButton.Text = "≡"
+	toggleButton.Size = UDim2.new(0, 50, 0, 50)
+	toggleButton.Position = UDim2.new(0, 10, 0, 10)
+	toggleButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+	toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	toggleButton.Font = Enum.Font.SourceSansBold
+	toggleButton.TextSize = 24
+	toggleButton.Parent = screenGui
+	Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(1, 0)
+
+	makeDraggable(toggleButton)
+	makeDraggable(frame)
+
+	toggleButton.MouseButton1Click:Connect(function()
+		frame.Visible = not frame.Visible
+		toggleButton.Text = frame.Visible and "≡" or "+"
+	end)
+end
+
+createUI()
+local CoreGui = game:GetService("StarterGui")
+
+CoreGui:SetCore("SendNotification", {
+	Title = "made by Rozniw";
+	Text = "tool editor loaded";
+	Duration = 5;
+	
+	Button1 = "Fuck Roblox";
+	Button2 = "Fuck Roblox";
+})
