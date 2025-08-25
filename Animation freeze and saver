@@ -1,0 +1,374 @@
+-- إعداد الخدمات
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- ملف الحفظ
+local dances = {}
+local saveFile = "رقصاتي.json"
+if isfile(saveFile) then
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(saveFile))
+    end)
+    if success then dances = data end
+end
+
+local function saveToFile()
+    writefile(saveFile, HttpService:JSONEncode(dances))
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "DanceGUI"
+
+local main = Instance.new("Frame", gui)
+main.Position = UDim2.new(0, 10, 0, 50)
+main.Size = UDim2.new(0, 320, 0, 400)
+main.BackgroundColor3 = Color3.fromRGB(30,30,30)
+main.Active = true
+main.Visible = true
+main.Draggable = true
+
+local openBtn = Instance.new("TextButton", gui)
+openBtn.Size = UDim2.new(0, 100, 0, 30)
+openBtn.Position = UDim2.new(0, 10, 0, 10)
+openBtn.Text = "📂 فتح القائمة"
+openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+end)
+
+-- Scroll Frame
+local scrolling = Instance.new("ScrollingFrame", main)
+scrolling.Position = UDim2.new(0, 10, 0, 90)
+scrolling.Size = UDim2.new(1, -20, 1, -140)
+scrolling.CanvasSize = UDim2.new(0, 0, 0, 5000)
+scrolling.ScrollBarThickness = 6
+scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrolling.BackgroundColor3 = Color3.fromRGB(20,20,20)
+local layout = Instance.new("UIListLayout", scrolling)
+layout.Padding = UDim.new(0,5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- عناصر التحكم
+local idBox = Instance.new("TextBox", main)
+idBox.Position = UDim2.new(0, 10, 0, 10)
+idBox.Size = UDim2.new(0, 150, 0, 30)
+idBox.PlaceholderText = "Animation ID"
+idBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+idBox.TextColor3 = Color3.new(1,1,1)
+
+local playBtn = Instance.new("TextButton", main)
+playBtn.Position = UDim2.new(0, 170, 0, 10)
+playBtn.Size = UDim2.new(0, 60, 0, 30)
+playBtn.Text = "▶️"
+playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
+playBtn.TextColor3 = Color3.new(1,1,1)
+
+local stopAllBtn = Instance.new("TextButton", main)
+stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
+stopAllBtn.Size = UDim2.new(0, 70, 0, 30)
+stopAllBtn.Text = "⛔ الكل"
+stopAllBtn.BackgroundColor3 = Color3.fromRGB(150,50,50)
+stopAllBtn.TextColor3 = Color3.new(1,1,1)
+
+local speedBox = Instance.new("TextBox", main)
+speedBox.Position = UDim2.new(0, 10, 0, 45)
+speedBox.Size = UDim2.new(0, 150, 0, 30)
+speedBox.PlaceholderText = "هنا تختار سرعه"
+speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+speedBox.TextColor3 = Color3.new(1,1,1)
+
+local applySpeedBtn = Instance.new("TextButton", main)
+applySpeedBtn.Position = UDim2.new(0, 170, 0, 45)
+applySpeedBtn.Size = UDim2.new(0, 60, 0, 30)
+applySpeedBtn.Text = "تطبيق"
+applySpeedBtn.BackgroundColor3 = Color3.fromRGB(60,100,100)
+applySpeedBtn.TextColor3 = Color3.new(1,1,1)
+
+local freezeBtn = Instance.new("TextButton", main)
+freezeBtn.Position = UDim2.new(0, 10, 0, 80)
+freezeBtn.Size = UDim2.new(0, 140, 0, 30)
+freezeBtn.Text = "🧊 تجميد الكل"
+freezeBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+freezeBtn.TextColor3 = Color3.new(1,1,1)
+
+local freezeSingleBtn = Instance.new("TextButton", main)
+freezeSingleBtn.Position = UDim2.new(1, -150, 1, -35)
+freezeSingleBtn.Size = UDim2.new(0, 50, 0, 30)
+freezeSingleBtn.Text = "🧊 واحد"
+freezeSingleBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+freezeSingleBtn.TextColor3 = Color3.new(1,1,1)
+
+local animBtn = Instance.new("TextButton", main)
+animBtn.Position = UDim2.new(1, -210, 1, -35)
+animBtn.Size = UDim2.new(0, 50, 0, 30)
+animBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
+animBtn.TextColor3 = Color3.new(1,1,1)
+animBtn.Text = "—"
+
+local saveBtn = Instance.new("TextButton", main)
+saveBtn.Position = UDim2.new(1, -90, 1, -35)
+saveBtn.Size = UDim2.new(0, 50, 0, 30)
+saveBtn.Text = "💾 حفظ"
+saveBtn.BackgroundColor3 = Color3.fromRGB(100,100,30)
+saveBtn.TextColor3 = Color3.new(1,1,1)
+
+local saveGroupBtn = Instance.new("TextButton", main)
+saveGroupBtn.Position = UDim2.new(0, 250, 0, 80)
+saveGroupBtn.Size = UDim2.new(0, 60, 0, 30)
+saveGroupBtn.Text = "💾 مجموعة"
+saveGroupBtn.BackgroundColor3 = Color3.fromRGB(100,70,30)
+saveGroupBtn.TextColor3 = Color3.new(1,1,1)
+
+-- Loop Button
+local loopBtn = Instance.new("TextButton", main)
+loopBtn.Size = UDim2.new(0, 60, 0, 30)
+loopBtn.Position = UDim2.new(0, 10, 0, 50)
+loopBtn.Text = "🔁 Loop"
+loopBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
+loopBtn.TextColor3 = Color3.new(1,1,1)
+local loopEnabled = false
+loopBtn.MouseButton1Click:Connect(function()
+    loopEnabled = not loopEnabled
+    loopBtn.BackgroundColor3 = loopEnabled and Color3.fromRGB(60,120,60) or Color3.fromRGB(80,80,120)
+end)
+
+-- متغيرات النظام
+local activeTracks = {}
+local currentTrack = nil
+local currentAnimId = nil
+
+local function setupCharacter(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    local animator = humanoid:WaitForChild("Animator")
+    
+    -- تشغيل ID
+    playBtn.MouseButton1Click:Connect(function()
+        local id = idBox.Text
+        if id == "" then return end
+        if not id:match("rbxassetid://") then id = "rbxassetid://" .. id end
+        
+        local anim = Instance.new("Animation")
+        anim.AnimationId = id
+        local track = humanoid:LoadAnimation(anim)
+        track:Play()
+        
+        table.insert(activeTracks, {Track=track, ID=id, Speed=1})
+        currentTrack = track
+        
+        -- Loop
+        if loopEnabled then
+            track.Stopped:Connect(function()
+                if loopEnabled then
+                    track:Play()
+                end
+            end)
+        end
+    end)
+    
+    -- إيقاف الكل
+    stopAllBtn.MouseButton1Click:Connect(function()
+        for _, data in ipairs(activeTracks) do data.Track:Stop() end
+        activeTracks = {}
+        currentTrack = nil
+    end)
+    
+    -- تطبيق السرعة
+    applySpeedBtn.MouseButton1Click:Connect(function()
+        local speed = tonumber(speedBox.Text)
+        if speed and currentTrack then
+            currentTrack:AdjustSpeed(speed)
+            for _, data in ipairs(activeTracks) do
+                if data.Track == currentTrack then data.Speed = speed end
+            end
+        end
+    end)
+    
+    -- تجميد الكل
+    freezeBtn.MouseButton1Click:Connect(function()
+        for _, data in ipairs(activeTracks) do
+            data.FreezeTime = data.Track.TimePosition
+            data.Track:AdjustSpeed(0)
+            data.Speed = 0
+        end
+    end)
+    
+    -- تجميد واحد
+    freezeSingleBtn.MouseButton1Click:Connect(function()
+        if currentTrack then
+            for _, data in ipairs(activeTracks) do
+                if data.Track == currentTrack then
+                    data.FreezeTime = data.Track.TimePosition
+                    data.Track:AdjustSpeed(0)
+                    data.Speed = 0
+                    break
+                end
+            end
+        end
+    end)
+    
+    -- نسخ ID
+    animator.AnimationPlayed:Connect(function(track)
+        if track and track.Animation and track.Animation.AnimationId then
+            local id = string.match(track.Animation.AnimationId, "%d+")
+            if id then
+                currentAnimId = id
+                animBtn.Text = id
+            end
+        end
+    end)
+    
+    animBtn.MouseButton1Click:Connect(function()
+        if currentAnimId and setclipboard then
+            setclipboard(currentAnimId)
+        end
+    end)
+end
+
+player.CharacterAdded:Connect(function(char)
+    setupCharacter(char)
+end)
+
+if player.Character then
+    setupCharacter(player.Character)
+end
+
+-- دوال حفظ الأنيميشن
+saveBtn.MouseButton1Click:Connect(function()
+    if currentTrack then
+        table.insert(dances,{
+            Name="رقصتي "..#dances+1,
+            AnimationId=currentTrack.Animation.AnimationId,
+            FreezeTime=currentTrack.TimePosition,
+            IsGroup=false
+        })
+        saveToFile()
+        refreshList()
+    end
+end)
+
+saveGroupBtn.MouseButton1Click:Connect(function()
+    if #activeTracks == 0 then return end
+    local combined = {}
+    for _, data in ipairs(activeTracks) do
+        if data.FreezeTime then
+            table.insert(combined, {ID=data.ID, FreezeTime=data.FreezeTime})
+        end
+    end
+    if #combined > 0 then
+        table.insert(dances,{
+            Name="مجموعة رقص "..#dances+1,
+            Animations=combined,
+            IsGroup=true
+        })
+        saveToFile()
+        refreshList()
+    end
+end)
+
+-- عرض القائمة
+function refreshList()
+    for _, child in ipairs(scrolling:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    for i,item in ipairs(dances) do
+        local frame = Instance.new("Frame", scrolling)
+        frame.Size = UDim2.new(1,-10,0,40)
+        frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        
+        local nameBtn = Instance.new("TextButton", frame)
+        nameBtn.Size = UDim2.new(0.5,-5,1,0)
+        nameBtn.Position = UDim2.new(0,5,0,0)
+        nameBtn.Text = item.Name
+        nameBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+        nameBtn.TextColor3 = Color3.new(1,1,1)
+        
+        nameBtn.MouseButton1Click:Connect(function()
+            for _,data in ipairs(activeTracks) do data.Track:Stop() end
+            activeTracks = {}
+            
+            if item.IsGroup then
+                for _,animData in ipairs(item.Animations) do
+                    local anim = Instance.new("Animation")
+                    anim.AnimationId = animData.ID
+                    local track = player.Character.Humanoid:LoadAnimation(anim)
+                    track:Play()
+                    track.TimePosition = animData.FreezeTime
+                    track:AdjustSpeed(0)
+                    table.insert(activeTracks,{Track=track,ID=animData.ID,Speed=0,FreezeTime=animData.FreezeTime})
+                end
+            else
+                local anim = Instance.new("Animation")
+                anim.AnimationId = item.AnimationId
+                local track = player.Character.Humanoid:LoadAnimation(anim)
+                track:Play()
+                if item.FreezeTime then
+                    track.TimePosition = item.FreezeTime
+                    track:AdjustSpeed(0)
+                end
+                table.insert(activeTracks,{Track=track,ID=item.AnimationId,Speed=item.FreezeTime and 0 or 1,FreezeTime=item.FreezeTime})
+                currentTrack = track
+            end
+        end)
+        
+        -- أزرار التعديل والحذف كما في القديم
+        local rename = Instance.new("TextButton", frame)
+        rename.Size = UDim2.new(0,30,1,0)
+        rename.Position = UDim2.new(1,-150,0,0)
+        rename.Text = "✏️"
+        rename.MouseButton1Click:Connect(function()
+            nameBtn.Visible=false
+            local input=Instance.new("TextBox",frame)
+            input.Size=nameBtn.Size
+            input.Position=nameBtn.Position
+            input.Text=item.Name
+            input.BackgroundColor3=Color3.fromRGB(100,100,100)
+            input.TextColor3=Color3.new(1,1,1)
+            input.FocusLost:Connect(function(enter)
+                if enter and input.Text~="" then
+                    item.Name=input.Text
+                    saveToFile()
+                    refreshList()
+                end
+            end)
+        end)
+        
+        local stopBtn = Instance.new("TextButton", frame)
+        stopBtn.Size=UDim2.new(0,30,1,0)
+        stopBtn.Position=UDim2.new(1,-110,0,0)
+        stopBtn.Text="⛔"
+        stopBtn.BackgroundColor3=Color3.fromRGB(100,50,50)
+        stopBtn.TextColor3=Color3.new(1,1,1)
+        stopBtn.MouseButton1Click:Connect(function()
+            for _,data in ipairs(activeTracks) do data.Track:Stop() end
+            activeTracks={}
+        end)
+        
+        local unfreezeBtn = Instance.new("TextButton", frame)
+        unfreezeBtn.Size=UDim2.new(0,30,1,0)
+        unfreezeBtn.Position=UDim2.new(1,-70,0,0)
+        unfreezeBtn.Text="🔓"
+        unfreezeBtn.BackgroundColor3=Color3.fromRGB(70,70,70)
+        unfreezeBtn.TextColor3=Color3.new(1,1,1)
+        unfreezeBtn.MouseButton1Click:Connect(function()
+            for _,data in ipairs(activeTracks) do
+                if data.Speed==0 then data.Track:AdjustSpeed(1) data.Speed=1 end
+            end
+        end)
+        
+        local delete = Instance.new("TextButton", frame)
+        delete.Size=UDim2.new(0,30,1,0)
+        delete.Position=UDim2.new(1,-30,0,0)
+        delete.Text="🗑️"
+        delete.MouseButton1Click:Connect(function()
+            table.remove(dances,i)
+            saveToFile()
+            refreshList()
+        end)
+    end
+end
+
+refreshList()
