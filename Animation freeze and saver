@@ -8,259 +8,197 @@ local humanoid = character:WaitForChild("Humanoid")
 -- ملف الحفظ
 local dances = {}
 local saveFile = "رقصاتي.json"
-if isfile(saveFile) then
-    local success, data = pcall(function()
-        return HttpService:JSONDecode(readfile(saveFile))
-    end)
-    if success then dances = data end
+
+-- محاولة تحميل البيانات المحفوظة
+if pcall(function() return readfile end) then
+    if isfile and isfile(saveFile) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(saveFile))
+        end)
+        if success then 
+            dances = data 
+        end
+    end
 end
 
 local function saveToFile()
-    writefile(saveFile, HttpService:JSONEncode(dances))
-end
-
--- GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "DanceGUI"
-
--- جعل النافذة قابلة للسحب
-local dragging, dragInput, dragStart, startPos
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-local openBtn = Instance.new("TextButton", gui)
-openBtn.Size = UDim2.new(0, 100, 0, 30)
-openBtn.Position = UDim2.new(0, 10, 0, 10)
-openBtn.Text = "📂 فتح القائمة"
-openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-openBtn.TextColor3 = Color3.new(1,1,1)
-
-openBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = main.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+    if pcall(function() return writefile end) and isfile then
+        pcall(function()
+            writefile(saveFile, HttpService:JSONEncode(dances))
         end)
     end
-end)
-
-openBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        updateInput(input)
-    end
-end)
-
-local main = Instance.new("Frame", gui)
-main.Position = UDim2.new(0, 10, 0, 50)
-main.Size = UDim2.new(0, 320, 0, 400)
-main.Visible = true
-main.BackgroundColor3 = Color3.fromRGB(30,30,30)
-main.Active = true
-main.Draggable = true
-
-local scrolling = Instance.new("ScrollingFrame", main)
-scrolling.Position = UDim2.new(0, 10, 0, 90)
-scrolling.Size = UDim2.new(1, -20, 1, -140)
-scrolling.CanvasSize = UDim2.new(0, 0, 0, 5000)
-scrolling.ScrollBarThickness = 6
-scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scrolling.BackgroundColor3 = Color3.fromRGB(20,20,20)
-
-local layout = Instance.new("UIListLayout", scrolling)
-layout.Padding = UDim.new(0, 5)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- إدخال ID وتشغيل
-local idBox = Instance.new("TextBox", main)
-idBox.Position = UDim2.new(0, 10, 0, 10)
-idBox.Size = UDim2.new(0, 150, 0, 30)
-idBox.PlaceholderText = "Animation ID"
-idBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-idBox.TextColor3 = Color3.new(1,1,1)
-
-local playBtn = Instance.new("TextButton", main)
-playBtn.Position = UDim2.new(0, 170, 0, 10)
-playBtn.Size = UDim2.new(0, 60, 0, 30)
-playBtn.Text = "▶️"
-playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
-playBtn.TextColor3 = Color3.new(1,1,1)
-
-local stopAllBtn = Instance.new("TextButton", main)
-stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
-stopAllBtn.Size = UDim2.new(0, 70, 0, 30)
-stopAllBtn.Text = "⛔ الكل"
-stopAllBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
-stopAllBtn.TextColor3 = Color3.new(1,1,1)
-
-local speedBox = Instance.new("TextBox", main)
-speedBox.Position = UDim2.new(0, 10, 0, 45)
-speedBox.Size = UDim2.new(0, 150, 0, 30)
-speedBox.PlaceholderText = "هنا تختار سرعه"
-speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-speedBox.TextColor3 = Color3.new(1,1,1)
-
-local applySpeedBtn = Instance.new("TextButton", main)
-applySpeedBtn.Position = UDim2.new(0, 170, 0, 45)
-applySpeedBtn.Size = UDim2.new(0, 60, 0, 30)
-applySpeedBtn.Text = "تطبيق"
-applySpeedBtn.BackgroundColor3 = Color3.fromRGB(60,100,100)
-applySpeedBtn.TextColor3 = Color3.new(1,1,1)
-
-local freezeBtn = Instance.new("TextButton", main)
-freezeBtn.Position = UDim2.new(0, 10, 0, 80)
-freezeBtn.Size = UDim2.new(0, 140, 0, 30)
-freezeBtn.Text = "🧊 تجميد الكل"
-freezeBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-freezeBtn.TextColor3 = Color3.new(1,1,1)
-
-local freezeSingleBtn = Instance.new("TextButton", main)
-freezeSingleBtn.Position = UDim2.new(1, -150, 1, -35)
-freezeSingleBtn.Size = UDim2.new(0, 50, 0, 30)
-freezeSingleBtn.Text = "🧊 واحد"
-freezeSingleBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-freezeSingleBtn.TextColor3 = Color3.new(1,1,1)
-
-local animBtn = Instance.new("TextButton", main)
-animBtn.Position = UDim2.new(1, -210, 1, -35)
-animBtn.Size = UDim2.new(0, 50, 0, 30)
-animBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
-animBtn.TextColor3 = Color3.new(1,1,1)
-animBtn.Text = "—"
-
-local saveBtn = Instance.new("TextButton", main)
-saveBtn.Position = UDim2.new(1, -90, 1, -35)
-saveBtn.Size = UDim2.new(0, 50, 0, 30)
-saveBtn.Text = "💾 حفظ"
-saveBtn.BackgroundColor3 = Color3.fromRGB(100,100,30)
-saveBtn.TextColor3 = Color3.new(1,1,1)
-
-local saveGroupBtn = Instance.new("TextButton", main)
-saveGroupBtn.Position = UDim2.new(0, 250, 0, 80)
-saveGroupBtn.Size = UDim2.new(0, 60, 0, 30)
-saveGroupBtn.Text = "💾 مجموعة"
-saveGroupBtn.BackgroundColor3 = Color3.fromRGB(100,70,30)
-saveGroupBtn.TextColor3 = Color3.new(1,1,1)
-
--- أسهم التمرير
-local scrollDown = Instance.new("TextButton", main)
-scrollDown.Size = UDim2.new(0, 30, 0, 30)
-scrollDown.Position = UDim2.new(1, -35, 1, -35)
-scrollDown.Text = "⬇️"
-scrollDown.BackgroundColor3 = Color3.fromRGB(50,50,50)
-scrollDown.TextColor3 = Color3.new(1,1,1)
-
-local scrollUp = Instance.new("TextButton", main)
-scrollUp.Size = UDim2.new(0, 30, 0, 30)
-scrollUp.Position = UDim2.new(1, -35, 1, -75)
-scrollUp.Text = "⬆️"
-scrollUp.BackgroundColor3 = Color3.fromRGB(50,50,50)
-scrollUp.TextColor3 = Color3.new(1,1,1)
-
--- متغيرات النظام
-local activeTracks = {}
-local currentAnimId = nil
-local currentTrack = nil
-local scrollingFlag = false
-local scrollSpeed = 6
-
--- وظائف التمرير
-local function startScroll(direction)
-    scrollingFlag = true
-    while scrollingFlag do
-        scrolling.CanvasPosition = scrolling.CanvasPosition + Vector2.new(0, scrollSpeed * direction)
-        task.wait()
-    end
 end
 
-scrollDown.MouseButton1Down:Connect(function() startScroll(1) end)
-scrollDown.MouseButton1Up:Connect(function() scrollingFlag = false end)
-scrollUp.MouseButton1Down:Connect(function() startScroll(-1) end)
-scrollUp.MouseButton1Up:Connect(function() scrollingFlag = false end)
+-- إنشاء الواجهة الرسومية
+local function createGUI()
+    -- GUI في PlayerGui
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "DanceGUI"
+    gui.Parent = player:WaitForChild("PlayerGui")
 
--- تشغيل الأنيميشن
-playBtn.MouseButton1Click:Connect(function()
-    local id = idBox.Text
-    if id == "" then return end
-    
-    if not id:match("rbxassetid://") then
-        id = "rbxassetid://" .. id
-    end
-    
-    local anim = Instance.new("Animation")
-    anim.AnimationId = id
-    local newTrack = humanoid:LoadAnimation(anim)
-    newTrack:Play()
-    
-    table.insert(activeTracks, {
-        Track = newTrack,
-        ID = id,
-        Speed = 1,
-        FreezeTime = nil
-    })
-    
-    currentTrack = newTrack
-end)
+    -- إطار رئيسي (تم زيادة العرض لاستيعاب الأزرار)
+    local main = Instance.new("Frame", gui)
+    main.Position = UDim2.new(0, 10, 0, 50)
+    main.Size = UDim2.new(0, 350, 0, 400)  -- زيادة العرض من 320 إلى 350
+    main.Visible = false -- يبدأ مخفي
+    main.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    main.Active = true
+    main.Draggable = true
 
--- إيقاف الكل
-stopAllBtn.MouseButton1Click:Connect(function()
-    for _, data in ipairs(activeTracks) do
-        data.Track:Stop()
-    end
-    activeTracks = {}
-    currentTrack = nil
-end)
+    -- زر فتح/إغلاق القائمة
+    local openBtn = Instance.new("TextButton", gui)
+    openBtn.Size = UDim2.new(0, 100, 0, 30)
+    openBtn.Position = UDim2.new(0, 10, 0, 10)
+    openBtn.Text = "📂 فتح القائمة"
+    openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    openBtn.TextColor3 = Color3.new(1,1,1)
 
--- تطبيق السرعة
-applySpeedBtn.MouseButton1Click:Connect(function()
-    local speed = tonumber(speedBox.Text)
-    if speed then
-        if currentTrack then
-            currentTrack:AdjustSpeed(speed)
-            for _, data in ipairs(activeTracks) do
-                if data.Track == currentTrack then
-                    data.Speed = speed
-                    break
-                end
-            end
+    openBtn.MouseButton1Click:Connect(function()
+        main.Visible = not main.Visible
+    end)
+
+    -- Scroll Frame
+    local scrolling = Instance.new("ScrollingFrame", main)
+    scrolling.Position = UDim2.new(0, 10, 0, 90)
+    scrolling.Size = UDim2.new(1, -20, 1, -140)
+    scrolling.CanvasSize = UDim2.new(0, 0, 0, 5000)
+    scrolling.ScrollBarThickness = 6
+    scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scrolling.BackgroundColor3 = Color3.fromRGB(20,20,20)
+
+    local layout = Instance.new("UIListLayout", scrolling)
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- TextBox لتشغيل ID
+    local idBox = Instance.new("TextBox", main)
+    idBox.Position = UDim2.new(0, 10, 0, 10)
+    idBox.Size = UDim2.new(0, 150, 0, 30)
+    idBox.PlaceholderText = "Animation ID"
+    idBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    idBox.TextColor3 = Color3.new(1,1,1)
+
+    local playBtn = Instance.new("TextButton", main)
+    playBtn.Position = UDim2.new(0, 170, 0, 10)
+    playBtn.Size = UDim2.new(0, 60, 0, 30)
+    playBtn.Text = "▶️"
+    playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
+    playBtn.TextColor3 = Color3.new(1,1,1)
+
+    local stopAllBtn = Instance.new("TextButton", main)
+    stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
+    stopAllBtn.Size = UDim2.new(0, 70, 0, 30)
+    stopAllBtn.Text = "⛔ الكل"
+    stopAllBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    stopAllBtn.TextColor3 = Color3.new(1,1,1)
+
+    -- زر تشغيل السكربت (بدلاً من زر نسخ الأيدي القديم)
+    local executeBtn = Instance.new("TextButton", main)
+    executeBtn.Position = UDim2.new(0, 320, 0, 10)
+    executeBtn.Size = UDim2.new(0, 20, 0, 30)
+    executeBtn.Text = "⚡"
+    executeBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 160)
+    executeBtn.TextColor3 = Color3.new(1,1,1)
+
+    -- Box للسرعة وزر تطبيق
+    local speedBox = Instance.new("TextBox", main)
+    speedBox.Position = UDim2.new(0, 10, 0, 45)
+    speedBox.Size = UDim2.new(0, 150, 0, 30)
+    speedBox.PlaceholderText = "هنا تختار سرعه"
+    speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    speedBox.TextColor3 = Color3.new(1,1,1)
+
+    local applySpeedBtn = Instance.new("TextButton", main)
+    applySpeedBtn.Position = UDim2.new(0, 170, 0, 45)
+    applySpeedBtn.Size = UDim2.new(0, 60, 0, 30)
+    applySpeedBtn.Text = "تطبيق"
+    applySpeedBtn.BackgroundColor3 = Color3.fromRGB(60,100,100)
+    applySpeedBtn.TextColor3 = Color3.new(1,1,1)
+
+    -- زر نسخ الأيدي (الزر القديم)
+    local copyIdBtn = Instance.new("TextButton", main)
+    copyIdBtn.Position = UDim2.new(0, 240, 0, 45)
+    copyIdBtn.Size = UDim2.new(0, 70, 0, 30)
+    copyIdBtn.Text = "📋 ID"
+    copyIdBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+    copyIdBtn.TextColor3 = Color3.new(1,1,1)
+
+    -- أزرار تجميد
+    local freezeBtn = Instance.new("TextButton", main)
+    freezeBtn.Position = UDim2.new(0, 10, 0, 80)
+    freezeBtn.Size = UDim2.new(0, 140, 0, 30)
+    freezeBtn.Text = "🧊 تجميد الكل"
+    freezeBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    freezeBtn.TextColor3 = Color3.new(1,1,1)
+
+    local freezeSingleBtn = Instance.new("TextButton", main)
+    freezeSingleBtn.Position = UDim2.new(1, -150, 1, -35)
+    freezeSingleBtn.Size = UDim2.new(0, 50, 0, 30)
+    freezeSingleBtn.Text = "🧊 واحد"
+    freezeSingleBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    freezeSingleBtn.TextColor3 = Color3.new(1,1,1)
+
+    local animBtn = Instance.new("TextButton", main)
+    animBtn.Position = UDim2.new(1, -210, 1, -35)
+    animBtn.Size = UDim2.new(0, 50, 0, 30)
+    animBtn.BackgroundColor3 = Color3.fromRGB(80,80,120)
+    animBtn.TextColor3 = Color3.new(1,1,1)
+    animBtn.Text = "—"
+
+    local saveBtn = Instance.new("TextButton", main)
+    saveBtn.Position = UDim2.new(1, -90, 1, -35)
+    saveBtn.Size = UDim2.new(0, 50, 0, 30)
+    saveBtn.Text = "💾 حفظ"
+    saveBtn.BackgroundColor3 = Color3.fromRGB(100,100,30)
+    saveBtn.TextColor3 = Color3.new(1,1,1)
+
+    local saveGroupBtn = Instance.new("TextButton", main)
+    saveGroupBtn.Position = UDim2.new(0, 250, 0, 80)
+    saveGroupBtn.Size = UDim2.new(0, 60, 0, 30)
+    saveGroupBtn.Text = "💾 مجموعة"
+    saveGroupBtn.BackgroundColor3 = Color3.fromRGB(100,70,30)
+    saveGroupBtn.TextColor3 = Color3.new(1,1,1)
+
+    -- Scroll Buttons
+    local scrollDown = Instance.new("TextButton", main)
+    scrollDown.Size = UDim2.new(0, 30, 0, 30)
+    scrollDown.Position = UDim2.new(1, -35, 1, -35)
+    scrollDown.Text = "⬇️"
+    scrollDown.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    scrollDown.TextColor3 = Color3.new(1,1,1)
+
+    local scrollUp = Instance.new("TextButton", main)
+    scrollUp.Size = UDim2.new(0, 30, 0, 30)
+    scrollUp.Position = UDim2.new(1, -35, 1, -75)
+    scrollUp.Text = "⬆️"
+    scrollUp.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    scrollUp.TextColor3 = Color3.new(1,1,1)
+
+    -- متغيرات النظام
+    local activeTracks = {}
+    local currentAnimId = nil
+    local currentTrack = nil
+    local scrollingFlag = false
+    local scrollSpeed = 6
+
+    -- وظائف التمرير
+    local function startScroll(direction)
+        scrollingFlag = true
+        while scrollingFlag do
+            scrolling.CanvasPosition = scrolling.CanvasPosition + Vector2.new(0, scrollSpeed * direction)
+            task.wait()
         end
     end
-end)
 
--- تجميد الكل
-freezeBtn.MouseButton1Click:Connect(function()
-    for _, data in ipairs(activeTracks) do
-        data.FreezeTime = data.Track.TimePosition
-        data.Track:AdjustSpeed(0)
-        data.Speed = 0
-    end
-end)
+    scrollDown.MouseButton1Down:Connect(function() startScroll(1) end)
+    scrollDown.MouseButton1Up:Connect(function() scrollingFlag = false end)
+    scrollUp.MouseButton1Down:Connect(function() startScroll(-1) end)
+    scrollUp.MouseButton1Up:Connect(function() scrollingFlag = false end)
 
--- تجميد واحد
-freezeSingleBtn.MouseButton1Click:Connect(function()
-    if currentTrack then
-        for _, data in ipairs(activeTracks) do
-            if data.Track == currentTrack then
-                data.FreezeTime = data.Track.TimePosition
-                data.Track:AdjustSpeed(0)
-                data.Speed = 0
-                break
-            end
-        end
-    end
-end)
+    -- وظيفة تشغيل السكربت
+    executeBtn.MouseButton1Click:Connect(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
+    end)
 
 -- نسخ الـ ID
 local animator = humanoid:WaitForChild("Animator")
@@ -283,174 +221,250 @@ animBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- حفظ أنيميشن واحد
-saveBtn.MouseButton1Click:Connect(function()
-    if currentTrack then
-        table.insert(dances, {
-            Name = "رقصتي " .. tostring(#dances + 1),
-            AnimationId = currentTrack.Animation.AnimationId,
-            FreezeTime = currentTrack.TimePosition,
-            IsGroup = false
-        })
-        saveToFile()
-        refreshList()
-    end
-end)
+    -- وظائف تشغيل/إيقاف/تجميد/حفظ الأنيميشينات
+    playBtn.MouseButton1Click:Connect(function()
+        local animId = "rbxassetid://" .. idBox.Text
+        local anim = Instance.new("Animation")
+        anim.AnimationId = animId
+        local track = humanoid:LoadAnimation(anim)
+        track:Play()
+        table.insert(activeTracks, track)
+        currentTrack = track
+        currentAnimId = animId
+    end)
 
--- حفظ مجموعة
-saveGroupBtn.MouseButton1Click:Connect(function()
-    if #activeTracks == 0 then return end
-    
-    local combinedAnimations = {}
-    for _, data in ipairs(activeTracks) do
-        if data.FreezeTime then
-            table.insert(combinedAnimations, {
-                ID = data.ID,
-                FreezeTime = data.FreezeTime
-            })
+    stopAllBtn.MouseButton1Click:Connect(function()
+        for _, track in ipairs(activeTracks) do
+            track:Stop()
         end
-    end
-    
-    if #combinedAnimations > 0 then
-        table.insert(dances, {
-            Name = "مجموعة رقص " .. tostring(#dances + 1),
-            Animations = combinedAnimations,
-            IsGroup = true
-        })
-        saveToFile()
-        refreshList()
-    else
-        print("لا يوجد أنيميشينات مجمدة للحفظ")
-    end
-end)
+        activeTracks = {}
+        currentTrack = nil
+    end)
 
--- عرض القائمة
-function refreshList()
-    for _, child in ipairs(scrolling:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
-    end
-    
-    for i, item in ipairs(dances) do
-        local frame = Instance.new("Frame", scrolling)
-        frame.Size = UDim2.new(1, -10, 0, 40)
-        frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    applySpeedBtn.MouseButton1Click:Connect(function()
+        local speed = tonumber(speedBox.Text) or 1
+        if currentTrack then
+            currentTrack:AdjustSpeed(speed)
+        end
+    end)
 
-        local nameBtn = Instance.new("TextButton", frame)
-        nameBtn.Size = UDim2.new(0.5, -5, 1, 0)
-        nameBtn.Position = UDim2.new(0, 5, 0, 0)
-        nameBtn.Text = item.Name
-        nameBtn.TextColor3 = Color3.new(1,1,1)
-        nameBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-        
-        nameBtn.MouseButton1Click:Connect(function()
-            -- إيقاف كل الأنيميشينات الحالية
-            for _, data in ipairs(activeTracks) do
-                data.Track:Stop()
+    freezeBtn.MouseButton1Click:Connect(function()
+        for _, track in ipairs(activeTracks) do
+            if track.IsPlaying then
+                track:AdjustSpeed(0)
             end
-            activeTracks = {}
-            
-            if item.IsGroup then
-                -- تشغيل مجموعة الأنيميشينات
-                for _, animData in ipairs(item.Animations) do
-                    local anim = Instance.new("Animation")
-                    anim.AnimationId = animData.ID
-                    local track = humanoid:LoadAnimation(anim)
-                    track:Play()
-                    track.TimePosition = animData.FreezeTime
-                    track:AdjustSpeed(0)
-                    
-                    table.insert(activeTracks, {
-                        Track = track,
-                        ID = animData.ID,
-                        Speed = 0,
-                        FreezeTime = animData.FreezeTime
-                    })
-                end
+        end
+    end)
+
+    freezeSingleBtn.MouseButton1Click:Connect(function()
+        if currentTrack and currentTrack.IsPlaying then
+            currentTrack:AdjustSpeed(0)
+        end
+    end)
+
+    animBtn.MouseButton1Click:Connect(function()
+        if currentTrack then
+            if currentTrack.IsPlaying then
+                currentTrack:Stop()
+                animBtn.Text = "▶️"
             else
-                -- تشغيل أنيميشن مفرد
-                local anim = Instance.new("Animation")
-                anim.AnimationId = item.AnimationId
-                local track = humanoid:LoadAnimation(anim)
-                track:Play()
-                if item.FreezeTime then
-                    track.TimePosition = item.FreezeTime
-                    track:AdjustSpeed(0)
-                end
-                
-                table.insert(activeTracks, {
-                    Track = track,
-                    ID = item.AnimationId,
-                    Speed = item.FreezeTime and 0 or 1,
-                    FreezeTime = item.FreezeTime
-                })
-                
-                currentTrack = track
+                currentTrack:Play()
+                animBtn.Text = "⏸️"
             end
-        end)
+        end
+    end)
 
-        local rename = Instance.new("TextButton", frame)
-        rename.Size = UDim2.new(0, 30, 1, 0)
-        rename.Position = UDim2.new(1, -150, 0, 0)
-        rename.Text = "✏️"
-        rename.MouseButton1Click:Connect(function()
-            nameBtn.Visible = false
-            local input = Instance.new("TextBox", frame)
-            input.Size = nameBtn.Size
-            input.Position = nameBtn.Position
-            input.Text = item.Name
-            input.TextColor3 = Color3.new(1,1,1)
-            input.BackgroundColor3 = Color3.fromRGB(100,100,100)
-            input.FocusLost:Connect(function(enter)
-                if enter and input.Text ~= "" then
-                    item.Name = input.Text
-                    saveToFile()
-                    refreshList()
-                end
-            end)
-        end)
-
-        local stopBtn = Instance.new("TextButton", frame)
-        stopBtn.Size = UDim2.new(0, 30, 1, 0)
-        stopBtn.Position = UDim2.new(1, -110, 0, 0)
-        stopBtn.Text = "⛔"
-        stopBtn.BackgroundColor3 = Color3.fromRGB(100,50,50)
-        stopBtn.TextColor3 = Color3.new(1,1,1)
-        stopBtn.MouseButton1Click:Connect(function()
-            for _, data in ipairs(activeTracks) do
-                data.Track:Stop()
-            end
-            activeTracks = {}
-        end)
-
-        local unfreezeBtn = Instance.new("TextButton", frame)
-        unfreezeBtn.Size = UDim2.new(0, 30, 1, 0)
-        unfreezeBtn.Position = UDim2.new(1, -70, 0, 0)
-        unfreezeBtn.Text = "🔓"
-        unfreezeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-        unfreezeBtn.TextColor3 = Color3.new(1,1,1)
-        unfreezeBtn.MouseButton1Click:Connect(function()
-            for _, data in ipairs(activeTracks) do
-                if data.Speed == 0 then
-                    data.Track:AdjustSpeed(1)
-                    data.Speed = 1
-                end
-            end
-        end)
-
-        local delete = Instance.new("TextButton", frame)
-        delete.Size = UDim2.new(0, 30, 1, 0)
-        delete.Position = UDim2.new(1, -30, 0, 0)
-        delete.Text = "🗑️"
-        delete.MouseButton1Click:Connect(function()
-            table.remove(dances, i)
+    saveBtn.MouseButton1Click:Connect(function()
+        if currentAnimId then
+            local name = "رقصة " .. #dances + 1
+            table.insert(dances, {
+                Name = name,
+                AnimationId = currentAnimId,
+                FreezeTime = currentTrack and currentTrack.TimePosition or 0
+            })
             saveToFile()
             refreshList()
-        end)
-    end
-end
+        end
+    end)
 
-openBtn.MouseButton1Click:Connect(function()
-    main.Visible = not main.Visible
+    saveGroupBtn.MouseButton1Click:Connect(function()
+        if #activeTracks > 0 then
+            local groupAnimations = {}
+            for _, track in ipairs(activeTracks) do
+                table.insert(groupAnimations, {
+                    ID = track.Animation.AnimationId,
+                    FreezeTime = track.TimePosition
+                })
+            end
+            
+            table.insert(dances, {
+                Name = "مجموعة رقصات " .. #dances + 1,
+                IsGroup = true,
+                Animations = groupAnimations
+            })
+            saveToFile()
+            refreshList()
+        end
+    end)
+
+    -- وظيفة تحديث القائمة
+    function refreshList()
+        for _, child in ipairs(scrolling:GetChildren()) do
+            if child:IsA("Frame") then child:Destroy() end
+        end
+        
+        for i, item in ipairs(dances) do
+            local frame = Instance.new("Frame", scrolling)
+            frame.Size = UDim2.new(1, -10, 0, 40)
+            frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+
+            local nameBtn = Instance.new("TextButton", frame)
+            nameBtn.Size = UDim2.new(0.5, -5, 1, 0)
+            nameBtn.Position = UDim2.new(0, 5, 0, 0)
+            nameBtn.Text = item.Name
+            nameBtn.TextColor3 = Color3.new(1,1,1)
+            nameBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+
+            nameBtn.MouseButton1Click:Connect(function()
+                for _, track in ipairs(activeTracks) do
+                    track:Stop()
+                end
+                activeTracks = {}
+                
+                if item.IsGroup then
+                    for _, animData in ipairs(item.Animations) do
+                        local anim = Instance.new("Animation")
+                        anim.AnimationId = animData.ID
+                        local track = humanoid:LoadAnimation(anim)
+                        track:Play()
+                        track.TimePosition = animData.FreezeTime
+                        track:AdjustSpeed(0)
+                        table.insert(activeTracks, track)
+                    end
+                else
+                    local anim = Instance.new("Animation")
+                    anim.AnimationId = item.AnimationId
+                    local track = humanoid:LoadAnimation(anim)
+                    track:Play()
+                    if item.FreezeTime then 
+                        track.TimePosition = item.FreezeTime 
+                        track:AdjustSpeed(0) 
+                    end
+                    table.insert(activeTracks, track)
+                    currentTrack = track
+                    currentAnimId = item.AnimationId
+                    
+                    -- تحديث صندوق النص بـ ID الرقصة
+                    local idNumber = string.match(item.AnimationId, "%d+")
+                    if idNumber then
+                        idBox.Text = idNumber
+                    end
+                end
+            end)
+
+            local renameBtn = Instance.new("TextButton", frame)
+            renameBtn.Size = UDim2.new(0.2, -5, 1, 0)
+            renameBtn.Position = UDim2.new(0.5, 5, 0, 0)
+            renameBtn.Text = "✏️"
+            renameBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
+            renameBtn.TextColor3 = Color3.new(1,1,1)
+            
+            -- وظيفة تعديل الاسم بإدخال من الكيبورد
+renameBtn.MouseButton1Click:Connect(function()
+    -- إنشاء نافذة إدخال النص
+    local inputGui = Instance.new("ScreenGui", player.PlayerGui)
+    inputGui.Name = "RenameInputGui"
+    
+    local background = Instance.new("Frame", inputGui)
+    background.Size = UDim2.new(0, 300, 0, 150)
+    background.Position = UDim2.new(0.5, -150, 0.5, -75)
+    background.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    background.BorderSizePixel = 2
+    background.BorderColor3 = Color3.fromRGB(80, 80, 80)
+    
+    local title = Instance.new("TextLabel", background)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 10)
+    title.Text = "أدخل الاسم الجديد:"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.BackgroundTransparency = 1
+    
+    local inputBox = Instance.new("TextBox", background)
+    inputBox.Size = UDim2.new(0, 260, 0, 30)
+    inputBox.Position = UDim2.new(0.5, -130, 0, 50)
+    inputBox.PlaceholderText = "اكتب الاسم الجديد هنا"
+    inputBox.Text = item.Name
+    inputBox.TextColor3 = Color3.new(1, 1, 1)
+    inputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    inputBox.ClearTextOnFocus = false
+    
+    local confirmBtn = Instance.new("TextButton", background)
+    confirmBtn.Size = UDim2.new(0, 100, 0, 30)
+    confirmBtn.Position = UDim2.new(0.5, -110, 0, 100)
+    confirmBtn.Text = "تأكيد"
+    confirmBtn.TextColor3 = Color3.new(1, 1, 1)
+    confirmBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+    
+    local cancelBtn = Instance.new("TextButton", background)
+    cancelBtn.Size = UDim2.new(0, 100, 0, 30)
+    cancelBtn.Position = UDim2.new(0.5, 10, 0, 100)
+    cancelBtn.Text = "إلغاء"
+    cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+    cancelBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+    
+    -- التركيز على مربع النص تلقائياً
+    inputBox:CaptureFocus()
+    
+    -- وظيفة التأكيد
+    confirmBtn.MouseButton1Click:Connect(function()
+        if inputBox.Text ~= "" then
+            item.Name = inputBox.Text
+            nameBtn.Text = inputBox.Text
+            saveToFile()
+        end
+        inputGui:Destroy()
+    end)
+    
+    -- وظيفة الإلغاء
+    cancelBtn.MouseButton1Click:Connect(function()
+        inputGui:Destroy()
+    end)
+    
+    -- إغلاق عند الضغط على زر الإدخال (Enter)
+    inputBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed and inputBox.Text ~= "" then
+            item.Name = inputBox.Text
+            nameBtn.Text = inputBox.Text
+            saveToFile()
+            inputGui:Destroy()
+        end
+    end)
 end)
 
-refreshList()
+            local deleteBtn = Instance.new("TextButton", frame)
+            deleteBtn.Size = UDim2.new(0.2, -5, 1, 0)
+            deleteBtn.Position = UDim2.new(0.7, 5, 0, 0)
+            deleteBtn.Text = "🗑️"
+            deleteBtn.BackgroundColor3 = Color3.fromRGB(100,70,70)
+            deleteBtn.TextColor3 = Color3.new(1,1,1)
+            
+            deleteBtn.MouseButton1Click:Connect(function()
+                table.remove(dances, i)
+                saveToFile()
+                refreshList()
+            end)
+        end
+    end
+
+    -- تهيئة الواجهة
+    refreshList()
+    
+    return main
+end
+
+-- إنشاء الواجهة بعد تحميل اللاعب
+local mainFrame = createGUI()
+
+-- إظهار رسالة تأكيد
+print("تم تحميل واجهة تحكم الرقصات بنجاح!")
+print("اضغط على زر 'فتح القائمة' في الزاوية اليسرى العليا لفتح القائمة")
