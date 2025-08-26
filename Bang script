@@ -18,6 +18,7 @@ local OSCILLATION_RANGE = 0.5
 local OSCILLATION_SPEED = 3
 local timeElapsedBack = 0
 local timeElapsedFront = 0
+local lockedFace = nil -- nil: تلقائي, "front": وجه للضحية, "back": خلف الضحية
 
 -- وظائف عامة
 local function getGuiParent()
@@ -88,9 +89,17 @@ local function startBangBack()
         local desiredPos = tRoot.Position - (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
         local moveDir = (desiredPos - myRoot.Position)
         if moveDir.Magnitude > 0.05 then
+            local facePos
+            if lockedFace == "front" then
+                facePos = tRoot.Position
+            elseif lockedFace == "back" then
+                facePos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+            else
+                facePos = tRoot.Position
+            end
             myRoot.CFrame = CFrame.new(
                 myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
-                tRoot.Position
+                facePos
             )
         end
     end)
@@ -128,9 +137,20 @@ local function startBangFront()
         local desiredPos = tRoot.Position + (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
         local moveDir = (desiredPos - myRoot.Position)
         if moveDir.Magnitude > 0.05 then
+            local facePos
+if lockedFace == "front" then
+    -- لف وجهك على الضحية
+    facePos = tRoot.Position
+elseif lockedFace == "back" then
+    -- لف وجهك على الجهة الثانية (العكس)
+    facePos = tRoot.Position + tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+else
+    -- الوضع الافتراضي: الضحية
+    facePos = tRoot.Position
+end
             myRoot.CFrame = CFrame.new(
                 myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
-                tRoot.Position
+                facePos
             )
         end
     end)
@@ -141,6 +161,26 @@ local function stopBangFront()
     if followConnFront then followConnFront:Disconnect() end
     stopAnim(animTrackFront)
     animTrackFront = nil
+end
+
+local function turnFaceToTarget(isBack)
+    local target = findTargetByPrefix(targetPrefix)
+    if not target or not target.Character then
+        warn("لا يوجد لاعب بهذا الاسم.")
+        return
+    end
+    local myChar = LocalPlayer.Character
+    local tChar = target.Character
+    if not (myChar and tChar) then return end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+    if not (myRoot and tRoot) then return end
+    if isBack then
+        local backPos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+        myRoot.CFrame = CFrame.new(myRoot.Position, backPos)
+    else
+        myRoot.CFrame = CFrame.new(myRoot.Position, tRoot.Position)
+    end
 end
 
 -- UI
@@ -167,7 +207,7 @@ OpenBtn.Draggable = true
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
 local Panel = Instance.new("Frame", ScreenGui)
-Panel.Size = UDim2.new(0, 210, 0, 400)
+Panel.Size = UDim2.new(0, 210, 0, 460)
 Panel.Position = UDim2.new(0, 100, 0, 100)
 Panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Panel.Visible = false
@@ -184,11 +224,14 @@ local function makeBox(placeholder, posY)
     box.TextColor3 = Color3.new(1, 1, 1)
     box.TextSize = 12
     box.ClearTextOnFocus = false
+    box.Focused:Connect(function()
+        box.Text = ""
+    end)
     Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
     return box
 end
 
--- زر عرض ونسخ ID الأنيميشن
+-- زر عرض ونسخ رقم الأنيميشن الحالي المستخدم
 local CopyAnimIdBtn = Instance.new("TextButton", Panel)
 CopyAnimIdBtn.Size = UDim2.new(1, -14, 0, 24)
 CopyAnimIdBtn.Position = UDim2.new(0, 7, 0, 8)
@@ -198,7 +241,42 @@ CopyAnimIdBtn.TextSize = 12
 CopyAnimIdBtn.Text = "..."
 Instance.new("UICorner", CopyAnimIdBtn).CornerRadius = UDim.new(0, 6)
 
--- باقي التكست بوكس
+local function getCurrentAnimId()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return nil end
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then return nil end
+    local playingTracks = animator:GetPlayingAnimationTracks()
+    for i = #playingTracks, 1, -1 do
+        local track = playingTracks[i]
+        if track and track.Animation then
+            local animId = tostring(track.Animation.AnimationId):match("%d+")
+            if animId and animId ~= "" then
+                return animId
+            end
+        end
+    end
+    return nil
+end
+
+RunService.Heartbeat:Connect(function()
+    local animId = getCurrentAnimId()
+    if animId then
+        CopyAnimIdBtn.Text = animId
+    else
+        CopyAnimIdBtn.Text = "..."
+    end
+end)
+
+CopyAnimIdBtn.MouseButton1Click:Connect(function()
+    local animId = getCurrentAnimId()
+    if animId then
+        setclipboard(animId)
+    end
+end)
+
 local InputName = makeBox("أول حرفين من اسم اللاعب", 38)
 local InputSpeed = makeBox("سرعة Bang", 66)
 local InputAnim = makeBox("ID أنيميشن Bang", 94)
@@ -206,7 +284,6 @@ local InputBaseDist = makeBox("المسافة الأساسية", 122)
 local InputOscRange = makeBox("مدى الارتداد", 150)
 local InputOscSpeed = makeBox("سرعة الارتداد", 178)
 
--- الأزرار العادية
 local StartBtnBack = Instance.new("TextButton", Panel)
 StartBtnBack.Size = UDim2.new(1, -14, 0, 24)
 StartBtnBack.Position = UDim2.new(0, 7, 0, 206)
@@ -234,7 +311,6 @@ StopBtn.TextColor3 = Color3.new(1, 1, 1)
 StopBtn.TextSize = 12
 Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
 
--- تكست بوكس سرعة الأنيميشن + زر تطبيق + زر تجميد
 local InputAnimSpeed = makeBox("سرعة الأنيميشن", 290)
 
 local ApplyAnimSpeedBtn = Instance.new("TextButton", Panel)
@@ -255,36 +331,24 @@ FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
 FreezeAnimBtn.TextSize = 12
 Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
 
--- تحديث زر ID بحيث يعرض آخر أنيميشن اشتغل على اللاعب
-RunService.Heartbeat:Connect(function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if not animator then return end
-    
-    local playingTracks = animator:GetPlayingAnimationTracks()
-    if #playingTracks > 0 then
-        -- ناخذ آخر أنيميشن في القائمة (عادة هو الأحدث)
-        local lastTrack = playingTracks[#playingTracks]
-        if lastTrack and lastTrack.Animation then
-            local id = tostring(lastTrack.Animation.AnimationId):match("%d+")
-            CopyAnimIdBtn.Text = id or "..."
-        end
-    else
-        CopyAnimIdBtn.Text = "..."
-    end
-end)
+local FaceBtn = Instance.new("TextButton", Panel)
+FaceBtn.Size = UDim2.new(0.5, -10, 0, 24)
+FaceBtn.Position = UDim2.new(0, 7, 0, 374)
+FaceBtn.BackgroundColor3 = Color3.fromRGB(80, 130, 250)
+FaceBtn.Text = "لف وجهك للضحية"
+FaceBtn.TextColor3 = Color3.new(1, 1, 1)
+FaceBtn.TextSize = 12
+Instance.new("UICorner", FaceBtn).CornerRadius = UDim.new(0, 6)
 
--- نسخ كل الـ Animation IDs الظاهرة على الزر
-CopyAnimIdBtn.MouseButton1Click:Connect(function()
-    if CopyAnimIdBtn.Text and CopyAnimIdBtn.Text ~= "..." then
-        setclipboard(CopyAnimIdBtn.Text)
-    end
-end)
+local FaceBackBtn = Instance.new("TextButton", Panel)
+FaceBackBtn.Size = UDim2.new(0.5, -10, 0, 24)
+FaceBackBtn.Position = UDim2.new(0.5, 7, 0, 374)
+FaceBackBtn.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
+FaceBackBtn.Text = "لف وجهك للجهة الثانية"
+FaceBackBtn.TextColor3 = Color3.new(1, 1, 1)
+FaceBackBtn.TextSize = 12
+Instance.new("UICorner", FaceBackBtn).CornerRadius = UDim.new(0, 6)
 
--- أزرار التحكم
 ApplyAnimSpeedBtn.MouseButton1Click:Connect(function()
     local val = tonumber(InputAnimSpeed.Text)
     if val and val > 0 then
@@ -357,4 +421,15 @@ end)
 StopBtn.MouseButton1Click:Connect(function()
     stopBangBack()
     stopBangFront()
+    lockedFace = nil
+end)
+
+FaceBtn.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    lockedFace = "front"
+end)
+
+FaceBackBtn.MouseButton1Click:Connect(function()
+    targetPrefix = InputName.Text:lower()
+    lockedFace = "back"
 end)
