@@ -1,12 +1,18 @@
-local NEW_POSITION = Vector3.new(0, 0, 0)
-local NEW_ROTATION = {0, 0, 0}
-
+local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local DataStoreService = game:GetService("DataStoreService")
 local toolGripDataStore = DataStoreService:GetDataStore("ToolGripSettings")
 
+-- الانتظار حتى يكون اللاعب متاحًا
+local player = Players.LocalPlayer
+if not player then
+    player = Players.PlayerAdded:Wait()
+end
+
+local NEW_POSITION = Vector3.new(0, 0, 0)
+local NEW_ROTATION = {0, 0, 0}
+
 local function findToolInCharacter()
-	local player = game.Players.LocalPlayer
 	if player and player.Character then
 		for _, child in pairs(player.Character:GetChildren()) do
 			if child:IsA("Tool") then
@@ -23,7 +29,6 @@ local function setToolGrip(tool, position, roll, pitch, yaw)
 end
 
 local function reEquipTool(tool)
-	local player = game.Players.LocalPlayer
 	local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
 	if humanoid and tool then
 		humanoid:UnequipTools()
@@ -403,19 +408,32 @@ local function createSettingsManagerUI(parentFrame, values, sliders, applyCallba
 			Instance.new("UICorner", renameButton).CornerRadius = UDim.new(0, 4)
 			
 			renameButton.MouseButton1Click:Connect(function()
-				local newName = game:GetService("StarterGui"):GetCore("TextBox", {
-					Title = "تعديل الاسم",
-					Text = name,
-					PlaceholderText = "أدخل الاسم الجديد"
-				})
+				-- استخدام TextBox بسيط بدلاً من GetCore الذي قد لا يعمل
+				local textBox = Instance.new("TextBox")
+				textBox.Size = UDim2.new(0, 200, 0, 40)
+				textBox.Position = UDim2.new(0.5, -100, 0.5, -20)
+				textBox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+				textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+				textBox.Font = Enum.Font.SourceSans
+				textBox.TextSize = 16
+				textBox.Text = name
+				textBox.Parent = settingsManagerFrame
+				textBox.ZIndex = 25
 				
-				if newName and newName ~= "" and newName ~= name then
-					local success = saveSettings(newName, settings)
-					if success then
-						deleteSettings(name)
-						refreshSettingsList()
+				local function finishRename()
+					local newName = textBox.Text
+					textBox:Destroy()
+					
+					if newName and newName ~= "" and newName ~= name then
+						local success = saveSettings(newName, settings)
+						if success then
+							deleteSettings(name)
+							refreshSettingsList()
+						end
 					end
 				end
+				
+				textBox.FocusLost:Connect(finishRename)
 			end)
 			
 			yOffset = yOffset + 45
@@ -477,10 +495,13 @@ local function createSettingsManagerUI(parentFrame, values, sliders, applyCallba
 end
 
 local function createUI()
+	-- الانتظار حتى يكون PlayerGui متاحًا
+	local playerGui = player:WaitForChild("PlayerGui")
+	
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "ToolGripEditor"
 	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+	screenGui.Parent = playerGui
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(0, 320, 0, 450)
@@ -591,18 +612,23 @@ local function createUI()
 		frame.Visible = not frame.Visible
 		toggleButton.Text = frame.Visible and "≡" or "+"
 	end)
-	
-	-- تحميل الإعدادات تلقائياً عند فتح الواجهة
-	spawn(function()
-		-- لا يوجد تحميل تلقائي الآن، سيتم التحكم به عبر واجهة الإعدادات
-	end)
 end
 
-createUI()
+-- الانتظار حتى يكون اللاعب جاهزًا ثم إنشاء الواجهة
+player.CharacterAdded:Connect(function()
+	wait(1) -- انتظار إضافي لضمان تحميل الشخصية بالكامل
+	createUI()
+end)
+
+if player.Character then
+	createUI()
+else
+	player.CharacterAdded:Wait()
+	wait(1) -- انتظار إضافي لضمان تحميل الشخصية بالكامل
+	createUI()
+end
 
 local CoreGui = game:GetService("StarterGui")
 CoreGui:SetCore("SendNotification", {
 	Title = "made by Rozniw",
-	Text = "تم تحميل محرر الأدوات مع نظام الإعدادات المتقدم",
-	Duration = 5,
-})
+	Text = "تم تحميل محرر الأدوات 
