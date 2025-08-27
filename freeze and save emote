@@ -52,9 +52,6 @@ openBtn.Position = UDim2.new(0, 10, 0, 10)
 openBtn.Text = "😈 فتح القائمة"
 openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 openBtn.TextColor3 = Color3.new(1,1,1)
-
--- خلي الزر نفسه قابل للسحب مثل القائمة
-openBtn.Active = true
 openBtn.Draggable = true
 
 openBtn.MouseButton1Click:Connect(function()
