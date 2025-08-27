@@ -46,17 +46,17 @@ local function createGUI()
     main.Draggable = true
 
     -- زر فتح/إغلاق القائمة
-local openBtn = Instance.new("TextButton", gui)
-openBtn.Size = UDim2.new(0, 100, 0, 30)
-openBtn.Position = UDim2.new(0, 10, 0, 10)
-openBtn.Text = "😈 فتح القائمة"
-openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-openBtn.TextColor3 = Color3.new(1,1,1)
-openBtn.Draggable = true
-
-openBtn.MouseButton1Click:Connect(function()
-    main.Visible = not main.Visible
-end)
+    local openBtn = Instance.new("TextButton", gui)
+    openBtn.Size = UDim2.new(0, 100, 0, 30)
+    openBtn.Position = UDim2.new(0, 10, 0, 10)
+    openBtn.Text = "😈 فتح القائمة"
+    openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    openBtn.TextColor3 = Color3.new(1,1,1)
+    openBtn.Draggable = true
+    
+    openBtn.MouseButton1Click:Connect(function()
+        main.Visible = not main.Visible
+    end)
 
     -- Scroll Frame
     local scrolling = Instance.new("ScrollingFrame", main)
@@ -101,25 +101,6 @@ end)
     executeBtn.Text = "رحمه"
     executeBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 160)
     executeBtn.TextColor3 = Color3.new(1,1,1)
-    
-    local unfreezeBtn = Instance.new("TextButton", main)
-    unfreezeBtn.Position = UDim2.new(0, 150, 0, 10)
-    unfreezeBtn.Size = UDim2.new(0, 20, 0, 30)
-    unfreezeBtn.Text = "🔓"
-    unfreezeBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 160)
-    unfreezeBtn.TextColor3 = Color3.new(1,1,1)
-
-unfreezeBtn.MouseButton1Click:Connect(function()
-    if #frozenTracks > 0 then
-        local lastTrack = table.remove(frozenTracks)
-        if lastTrack then
-            lastTrack:AdjustSpeed(1)
-            print("تم إلغاء تجميد آخر حركة")
-        end
-    else
-        print("لا يوجد أي حركة مجمدة لإلغاء التجميد")
-    end
-end)
 
     -- Box للسرعة وزر تطبيق
     local speedBox = Instance.new("TextBox", main)
@@ -201,8 +182,7 @@ end)
     local currentTrack = nil
     local scrollingFlag = false
     local scrollSpeed = 10
-    local frozenTracks = {}
-    
+
     -- وظائف التمرير
     local function startScroll(direction)
         scrollingFlag = true
@@ -224,11 +204,12 @@ end)
 
 
 -- نسخ الـ ID
+local animator = humanoid:WaitForChild("Animator")
 animator.AnimationPlayed:Connect(function(track)
     if track and track.Animation and track.Animation.AnimationId then
         local id = string.match(track.Animation.AnimationId, "%d+")
         if id then
-            currentAnimId = id   -- خزن الرقم فقط بدل الرابط
+            currentAnimId = id
             animBtn.Text = id
         end
     end
@@ -236,10 +217,9 @@ end)
 
 animBtn.MouseButton1Click:Connect(function()
     if currentAnimId then
-        local onlyId = string.match(currentAnimId, "%d+")  -- استخراج الرقم فقط
-        if onlyId and setclipboard then
-            setclipboard(onlyId)
-            print("تم نسخ Animation ID (رقم فقط):", onlyId)
+        if setclipboard then
+            setclipboard(currentAnimId)
+            print("تم نسخ Animation ID:", currentAnimId)
         end
     end
 end)
@@ -273,19 +253,17 @@ end)
     end)
 
     freezeBtn.MouseButton1Click:Connect(function()
-for _, track in ipairs(activeTracks) do
-    if track.IsPlaying then
-        track:AdjustSpeed(0)
-        table.insert(frozenTracks, track)
-    end
-end
+        for _, track in ipairs(activeTracks) do
+            if track.IsPlaying then
+                track:AdjustSpeed(0)
+            end
+        end
     end)
 
     freezeSingleBtn.MouseButton1Click:Connect(function()
-if currentTrack and currentTrack.IsPlaying then
-    currentTrack:AdjustSpeed(0)
-    table.insert(frozenTracks, currentTrack)
-end
+        if currentTrack and currentTrack.IsPlaying then
+            currentTrack:AdjustSpeed(0)
+        end
     end)
 
     animBtn.MouseButton1Click:Connect(function()
