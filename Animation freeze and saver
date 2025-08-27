@@ -39,8 +39,8 @@ local function createGUI()
     -- إطار رئيسي (تم زيادة العرض لاستيعاب الأزرار)
     local main = Instance.new("Frame", gui)
     main.Position = UDim2.new(0, 10, 0, 50)
-    main.Size = UDim2.new(0, 350, 0, 400)  -- زيادة العرض من 320 إلى 350
-    main.Visible = false -- يبدأ مخفي
+    main.Size = UDim2.new(0, 370, 0, 400)  -- من 320 إلى 350
+    main.Visible = true 
     main.BackgroundColor3 = Color3.fromRGB(30,30,30)
     main.Active = true
     main.Draggable = true
@@ -49,7 +49,7 @@ local function createGUI()
     local openBtn = Instance.new("TextButton", gui)
     openBtn.Size = UDim2.new(0, 100, 0, 30)
     openBtn.Position = UDim2.new(0, 10, 0, 10)
-    openBtn.Text = "📂 فتح القائمة"
+    openBtn.Text = "😈 فتح القائمة"
     openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
     openBtn.TextColor3 = Color3.new(1,1,1)
 
@@ -85,6 +85,7 @@ local function createGUI()
     playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
     playBtn.TextColor3 = Color3.new(1,1,1)
 
+
     local stopAllBtn = Instance.new("TextButton", main)
     stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
     stopAllBtn.Size = UDim2.new(0, 70, 0, 30)
@@ -96,7 +97,7 @@ local function createGUI()
     local executeBtn = Instance.new("TextButton", main)
     executeBtn.Position = UDim2.new(0, 320, 0, 10)
     executeBtn.Size = UDim2.new(0, 20, 0, 30)
-    executeBtn.Text = "⚡"
+    executeBtn.Text = "رحمه"
     executeBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 160)
     executeBtn.TextColor3 = Color3.new(1,1,1)
 
@@ -104,7 +105,7 @@ local function createGUI()
     local speedBox = Instance.new("TextBox", main)
     speedBox.Position = UDim2.new(0, 10, 0, 45)
     speedBox.Size = UDim2.new(0, 150, 0, 30)
-    speedBox.PlaceholderText = "هنا تختار سرعه"
+    speedBox.PlaceholderText = "سرعه الرقصه"
     speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
     speedBox.TextColor3 = Color3.new(1,1,1)
 
@@ -179,7 +180,7 @@ local function createGUI()
     local currentAnimId = nil
     local currentTrack = nil
     local scrollingFlag = false
-    local scrollSpeed = 6
+    local scrollSpeed = 10
 
     -- وظائف التمرير
     local function startScroll(direction)
@@ -199,6 +200,7 @@ local function createGUI()
     executeBtn.MouseButton1Click:Connect(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
     end)
+
 
 -- نسخ الـ ID
 local animator = humanoid:WaitForChild("Animator")
@@ -220,6 +222,7 @@ animBtn.MouseButton1Click:Connect(function()
         end
     end
 end)
+
 
     -- وظائف تشغيل/إيقاف/تجميد/حفظ الأنيميشينات
     playBtn.MouseButton1Click:Connect(function()
