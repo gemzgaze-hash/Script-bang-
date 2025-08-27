@@ -1,6 +1,10 @@
 local NEW_POSITION = Vector3.new(0, 0, 0)
 local NEW_ROTATION = {0, 0, 0}
 
+local HttpService = game:GetService("HttpService")
+local DataStoreService = game:GetService("DataStoreService")
+local toolGripDataStore = DataStoreService:GetDataStore("ToolGripSettings")
+
 local function findToolInCharacter()
 	local player = game.Players.LocalPlayer
 	if player and player.Character then
@@ -27,36 +31,460 @@ local function reEquipTool(tool)
 	end
 end
 
+-- نظام سحب محسن ومستقل لكل عنصر
 local function makeDraggable(uiElement)
 	local dragging = false
-	local dragOffset = Vector2.new()
-	local UIS = game:GetService("UserInputService")
+	local dragInput, mouseStart, frameStart
+	
 	uiElement.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
-			dragOffset = UIS:GetMouseLocation() - uiElement.AbsolutePosition
+			mouseStart = input.Position
+			frameStart = uiElement.Position
+			
+			-- Capture the input to prevent other elements from interfering
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
 		end
 	end)
-	uiElement.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
+	
+	uiElement.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
 		end
 	end)
-	game:GetService("RunService").RenderStepped:Connect(function()
-		if dragging then
-			local mouse = UIS:GetMouseLocation()
-			uiElement.Position = UDim2.new(0, mouse.X - dragOffset.X, 0, mouse.Y - dragOffset.Y)
+	
+	game:GetService("UserInputService").InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - mouseStart
+			uiElement.Position = UDim2.new(
+				frameStart.X.Scale, 
+				frameStart.X.Offset + delta.X,
+				frameStart.Y.Scale, 
+				frameStart.Y.Offset + delta.Y
+			)
 		end
 	end)
 end
 
+-- نظام سلايدر محسن
+local function createSlider(parent, label, min, max, defaultValue, yPos, callback)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(0.8, 0, 0, 60)
+	container.Position = UDim2.new(0.1, 0, yPos, 0)
+	container.BackgroundTransparency = 1
+	container.Parent = parent
+	
+	local lbl = Instance.new("TextLabel")
+	lbl.Text = label .. ": " .. defaultValue
+	lbl.Size = UDim2.new(1, 0, 0, 20)
+	lbl.Position = UDim2.new(0, 0, 0, 0)
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.BackgroundTransparency = 1
+	lbl.Font = Enum.Font.SourceSans
+	lbl.TextSize = 16
+	lbl.Parent = container
+	
+	local sliderContainer = Instance.new("Frame")
+	sliderContainer.Size = UDim2.new(1, 0, 0, 20)
+	sliderContainer.Position = UDim2.new(0, 0, 0, 25)
+	sliderContainer.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	sliderContainer.Parent = container
+	Instance.new("UICorner", sliderContainer).CornerRadius = UDim.new(0, 8)
+	
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((defaultValue - min) / (max - min), 0, 1, 0)
+	fill.Position = UDim2.new(0, 0, 0, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 2
+	fill.Parent = sliderContainer
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 8)
+	
+	local handle = Instance.new("TextButton")
+	handle.Size = UDim2.new(0, 20, 1.5, 0)
+	handle.Position = UDim2.new((defaultValue - min) / (max - min), -10, 0, -5)
+	handle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	handle.Text = ""
+	handle.ZIndex = 3
+	handle.Parent = sliderContainer
+	Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+	
+	local isDragging = false
+	
+	local function updateValue(value)
+		local clampedValue = math.clamp(value, min, max)
+		fill.Size = UDim2.new((clampedValue - min) / (max - min), 0, 1, 0)
+		handle.Position = UDim2.new((clampedValue - min) / (max - min), -10, 0, -5)
+		lbl.Text = label .. ": " .. string.format("%.2f", clampedValue)
+		callback(clampedValue)
+	end
+	
+	-- أحداث السحب للسلايدر فقط
+	handle.MouseButton1Down:Connect(function()
+		isDragging = true
+	end)
+	
+	handle.MouseButton1Up:Connect(function()
+		isDragging = false
+	end)
+	
+	handle.MouseLeave:Connect(function()
+		isDragging = false
+	end)
+	
+	game:GetService("RunService").RenderStepped:Connect(function()
+		if isDragging then
+			local mouse = game:GetService("UserInputService"):GetMouseLocation()
+			local absolutePosition = sliderContainer.AbsolutePosition
+			local absoluteSize = sliderContainer.AbsoluteSize
+			local relativeX = math.clamp((mouse.X - absolutePosition.X) / absoluteSize.X, 0, 1)
+			local value = min + relativeX * (max - min)
+			updateValue(value)
+		end
+	end)
+	
+	return {update = updateValue, getValue = function() return tonumber(lbl.Text:match(": (.-)$")) or defaultValue end}
+end
+
+-- وظائف حفظ واستعادة الإعدادات
+local function saveSettings(name, values)
+	local success, errorMessage = pcall(function()
+		-- تحميل الإعدادات الحالية
+		local allSettings = {}
+		local success, data = pcall(function()
+			return toolGripDataStore:GetAsync("AllGripSettings") or {}
+		end)
+		
+		if success then
+			allSettings = data
+		end
+		
+		-- إضافة أو تحديث الإعدادات
+		allSettings[name] = values
+		
+		-- حفظ الإعدادات في DataStore
+		toolGripDataStore:SetAsync("AllGripSettings", allSettings)
+		
+		print("تم حفظ الإعدادات: " .. name)
+	end)
+	
+	if success then
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "تم الحفظ",
+			Text = "تم حفظ الإعدادات باسم: " .. name,
+			Duration = 3,
+		})
+	else
+		warn("فشل في حفظ الإعدادات: " .. tostring(errorMessage))
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "خطأ في الحفظ",
+			Text = "فشل في حفظ الإعدادات",
+			Duration = 5,
+		})
+	end
+	
+	return success
+end
+
+local function loadSettings(name)
+	local success, allSettings = pcall(function()
+		return toolGripDataStore:GetAsync("AllGripSettings") or {}
+	end)
+	
+	if success and allSettings[name] then
+		return allSettings[name]
+	end
+	
+	-- إرجاع الإعدادات الافتراضية إذا لم توجد إعدادات محفوظة
+	return {
+		X = 0, Y = 0, Z = 0,
+		Roll = 0, Pitch = 0, Yaw = 0
+	}
+end
+
+local function getAllSettings()
+	local success, allSettings = pcall(function()
+		return toolGripDataStore:GetAsync("AllGripSettings") or {}
+	end)
+	
+	if success then
+		return allSettings
+	end
+	
+	return {}
+end
+
+local function deleteSettings(name)
+	local success, errorMessage = pcall(function()
+		-- تحميل الإعدادات الحالية
+		local allSettings = {}
+		local success, data = pcall(function()
+			return toolGripDataStore:GetAsync("AllGripSettings") or {}
+		end)
+		
+		if success then
+			allSettings = data
+		end
+		
+		-- حذف الإعدادات
+		allSettings[name] = nil
+		
+		-- حفظ الإعدادات في DataStore
+		toolGripDataStore:SetAsync("AllGripSettings", allSettings)
+		
+		print("تم حذف الإعدادات: " .. name)
+	end)
+	
+	if success then
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "تم الحذف",
+			Text = "تم حذف الإعدادات: " .. name,
+			Duration = 3,
+		})
+	else
+		warn("فشل في حذف الإعدادات: " .. tostring(errorMessage))
+	end
+	
+	return success
+end
+
+-- إنشاء واجهة إدارة الإعدادات
+local function createSettingsManagerUI(parentFrame, values, sliders, applyCallback)
+	local settingsManagerFrame = Instance.new("Frame")
+	settingsManagerFrame.Size = UDim2.new(0, 300, 0, 400)
+	settingsManagerFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+	settingsManagerFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	settingsManagerFrame.BackgroundTransparency = 0.1
+	settingsManagerFrame.Visible = false
+	settingsManagerFrame.ZIndex = 20
+	settingsManagerFrame.Parent = parentFrame.Parent
+	Instance.new("UICorner", settingsManagerFrame).CornerRadius = UDim.new(0, 10)
+	
+	local title = Instance.new("TextLabel")
+	title.Text = "إدارة الإعدادات المحفوظة"
+	title.Size = UDim2.new(1, 0, 0, 35)
+	title.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.SourceSansBold
+	title.TextSize = 18
+	title.Parent = settingsManagerFrame
+	Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+	
+	local closeButton = Instance.new("TextButton")
+	closeButton.Text = "X"
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -35, 0, 5)
+	closeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.Font = Enum.Font.SourceSansBold
+	closeButton.TextSize = 16
+	closeButton.Parent = settingsManagerFrame
+	Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 8)
+	
+	closeButton.MouseButton1Click:Connect(function()
+		settingsManagerFrame.Visible = false
+	end)
+	
+	local settingsList = Instance.new("ScrollingFrame")
+	settingsList.Size = UDim2.new(0.9, 0, 0, 250)
+	settingsList.Position = UDim2.new(0.05, 0, 0.15, 0)
+	settingsList.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	settingsList.BackgroundTransparency = 0.5
+	settingsList.BorderSizePixel = 0
+	settingsList.ScrollBarThickness = 8
+	settingsList.Parent = settingsManagerFrame
+	Instance.new("UICorner", settingsList).CornerRadius = UDim.new(0, 8)
+	
+	local uiListLayout = Instance.new("UIListLayout")
+	uiListLayout.Parent = settingsList
+	uiListLayout.Padding = UDim.new(0, 5)
+	
+	local function refreshSettingsList()
+		-- مسح القائمة الحالية
+		for _, child in ipairs(settingsList:GetChildren()) do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+		
+		-- تحميل الإعدادات المحفوظة
+		local allSettings = getAllSettings()
+		local yOffset = 0
+		
+		for name, settings in pairs(allSettings) do
+			local settingFrame = Instance.new("Frame")
+			settingFrame.Size = UDim2.new(1, -10, 0, 40)
+			settingFrame.Position = UDim2.new(0, 5, 0, yOffset)
+			settingFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			settingFrame.BackgroundTransparency = 0.5
+			settingFrame.Parent = settingsList
+			Instance.new("UICorner", settingFrame).CornerRadius = UDim.new(0, 5)
+			
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Text = name
+			nameLabel.Size = UDim2.new(0.5, 0, 1, 0)
+			nameLabel.Position = UDim2.new(0, 5, 0, 0)
+			nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Font = Enum.Font.SourceSans
+			nameLabel.TextSize = 14
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			nameLabel.Parent = settingFrame
+			
+			local loadButton = Instance.new("TextButton")
+			loadButton.Text = "تحميل"
+			loadButton.Size = UDim2.new(0, 50, 0, 25)
+			loadButton.Position = UDim2.new(0.5, 5, 0.5, -12)
+			loadButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+			loadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			loadButton.Font = Enum.Font.SourceSans
+			loadButton.TextSize = 12
+			loadButton.Parent = settingFrame
+			Instance.new("UICorner", loadButton).CornerRadius = UDim.new(0, 4)
+			
+			loadButton.MouseButton1Click:Connect(function()
+				-- تطبيق الإعدادات المحملة
+				values.X = settings.X or 0
+				values.Y = settings.Y or 0
+				values.Z = settings.Z or 0
+				values.Roll = settings.Roll or 0
+				values.Pitch = settings.Pitch or 0
+				values.Yaw = settings.Yaw or 0
+				
+				-- تحديث واجهة المستخدم
+				sliders.X.update(values.X)
+				sliders.Y.update(values.Y)
+				sliders.Z.update(values.Z)
+				sliders.Roll.update(values.Roll)
+				sliders.Pitch.update(values.Pitch)
+				sliders.Yaw.update(values.Yaw)
+				
+				-- تطبيق الإعدادات على الأداة
+				applyCallback()
+				
+				settingsManagerFrame.Visible = false
+				
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "تم التحميل",
+					Text = "تم تحميل الإعدادات: " .. name,
+					Duration = 3,
+				})
+			end)
+			
+			local deleteButton = Instance.new("TextButton")
+			deleteButton.Text = "حذف"
+			deleteButton.Size = UDim2.new(0, 50, 0, 25)
+			deleteButton.Position = UDim2.new(0.7, 5, 0.5, -12)
+			deleteButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+			deleteButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			deleteButton.Font = Enum.Font.SourceSans
+			deleteButton.TextSize = 12
+			deleteButton.Parent = settingFrame
+			Instance.new("UICorner", deleteButton).CornerRadius = UDim.new(0, 4)
+			
+			deleteButton.MouseButton1Click:Connect(function()
+				deleteSettings(name)
+				refreshSettingsList()
+			end)
+			
+			local renameButton = Instance.new("TextButton")
+			renameButton.Text = "تعديل"
+			renameButton.Size = UDim2.new(0, 50, 0, 25)
+			renameButton.Position = UDim2.new(0.85, 5, 0.5, -12)
+			renameButton.BackgroundColor3 = Color3.fromRGB(180, 180, 60)
+			renameButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			renameButton.Font = Enum.Font.SourceSans
+			renameButton.TextSize = 12
+			renameButton.Parent = settingFrame
+			Instance.new("UICorner", renameButton).CornerRadius = UDim.new(0, 4)
+			
+			renameButton.MouseButton1Click:Connect(function()
+				local newName = game:GetService("StarterGui"):GetCore("TextBox", {
+					Title = "تعديل الاسم",
+					Text = name,
+					PlaceholderText = "أدخل الاسم الجديد"
+				})
+				
+				if newName and newName ~= "" and newName ~= name then
+					local success = saveSettings(newName, settings)
+					if success then
+						deleteSettings(name)
+						refreshSettingsList()
+					end
+				end
+			end)
+			
+			yOffset = yOffset + 45
+		end
+		
+		settingsList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+	end
+	
+	local saveNewFrame = Instance.new("Frame")
+	saveNewFrame.Size = UDim2.new(0.9, 0, 0, 60)
+	saveNewFrame.Position = UDim2.new(0.05, 0, 0.75, 0)
+	saveNewFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	saveNewFrame.BackgroundTransparency = 0.5
+	saveNewFrame.Parent = settingsManagerFrame
+	Instance.new("UICorner", saveNewFrame).CornerRadius = UDim.new(0, 8)
+	
+	local saveNameBox = Instance.new("TextBox")
+	saveNameBox.Size = UDim2.new(0.6, 0, 0, 30)
+	saveNameBox.Position = UDim2.new(0.05, 0, 0.15, 0)
+	saveNameBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	saveNameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	saveNameBox.Font = Enum.Font.SourceSans
+	saveNameBox.TextSize = 14
+	saveNameBox.PlaceholderText = "اسم الإعدادات"
+	saveNameBox.Parent = saveNewFrame
+	Instance.new("UICorner", saveNameBox).CornerRadius = UDim.new(0, 4)
+	
+	local saveButton = Instance.new("TextButton")
+	saveButton.Text = "حفظ جديد"
+	saveButton.Size = UDim2.new(0.3, 0, 0, 30)
+	saveButton.Position = UDim2.new(0.67, 0, 0.15, 0)
+	saveButton.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
+	saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	saveButton.Font = Enum.Font.SourceSans
+	saveButton.TextSize = 14
+	saveButton.Parent = saveNewFrame
+	Instance.new("UICorner", saveButton).CornerRadius = UDim.new(0, 4)
+	
+	saveButton.MouseButton1Click:Connect(function()
+		if saveNameBox.Text ~= "" then
+			saveSettings(saveNameBox.Text, values)
+			refreshSettingsList()
+			saveNameBox.Text = ""
+		end
+	end)
+	
+	makeDraggable(settingsManagerFrame)
+	makeDraggable(title)
+	
+	return {
+		frame = settingsManagerFrame,
+		refresh = refreshSettingsList,
+		show = function() 
+			settingsManagerFrame.Visible = true 
+			refreshSettingsList()
+		end,
+		hide = function() settingsManagerFrame.Visible = false end
+	}
+end
+
 local function createUI()
 	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "ToolGripEditor"
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0, 320, 0, 300)
-	frame.Position = UDim2.new(0.5, -160, 0.5, -150)
+	frame.Size = UDim2.new(0, 320, 0, 450)
+	frame.Position = UDim2.new(0.1, 0, 0.1, 0)
 	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 	frame.BackgroundTransparency = 0.1
 	frame.Parent = screenGui
@@ -72,67 +500,76 @@ local function createUI()
 	title.Parent = frame
 	Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
 
-	local function makeLabel(text, yPos)
-		local lbl = Instance.new("TextLabel")
-		lbl.Text = text
-		lbl.Size = UDim2.new(0.8, 0, 0, 20)
-		lbl.Position = UDim2.new(0.1, 0, yPos, 0)
-		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-		lbl.BackgroundTransparency = 1
-		lbl.Font = Enum.Font.SourceSans
-		lbl.TextSize = 16
-		lbl.Parent = frame
-		return lbl
+	local sliders = {}
+	local values = {
+		X = 0, Y = 0, Z = 0,
+		Roll = 0, Pitch = 0, Yaw = 0
+	}
+
+	-- إنشاء أشرطة التمرير للموضع
+	sliders.X = createSlider(frame, "X Position", -5, 5, 0, 0.12, function(value)
+		values.X = value
+	end)
+	
+	sliders.Y = createSlider(frame, "Y Position", -5, 5, 0, 0.22, function(value)
+		values.Y = value
+	end)
+	
+	sliders.Z = createSlider(frame, "Z Position", -5, 5, 0, 0.32, function(value)
+		values.Z = value
+	end)
+
+	-- إنشاء أشرطة التمرير للدوران
+	sliders.Roll = createSlider(frame, "Roll", -180, 180, 0, 0.45, function(value)
+		values.Roll = value
+	end)
+	
+	sliders.Pitch = createSlider(frame, "Pitch", -180, 180, 0, 0.55, function(value)
+		values.Pitch = value
+	end)
+	
+	sliders.Yaw = createSlider(frame, "Yaw", -180, 180, 0, 0.65, function(value)
+		values.Yaw = value
+	end)
+
+	local function applySettings()
+		local tool = findToolInCharacter()
+		if tool then
+			setToolGrip(tool, Vector3.new(values.X, values.Y, values.Z), values.Roll, values.Pitch, values.Yaw)
+			reEquipTool(tool)
+		end
 	end
-
-	local function makeInput(placeholder, xPos, yPos)
-		local box = Instance.new("TextBox")
-		box.PlaceholderText = placeholder
-		box.Size = UDim2.new(0.2, 0, 0, 28)
-		box.Position = UDim2.new(xPos, 0, yPos, 0)
-		box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-		box.TextColor3 = Color3.fromRGB(255, 255, 255)
-		box.ClearTextOnFocus = false
-		box.Font = Enum.Font.SourceSans
-		box.TextSize = 16
-		box.Parent = frame
-		Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
-		return box
-	end
-
-	makeLabel("Position (X, Y, Z):", 0.15)
-	local xInput = makeInput("X", 0.1, 0.25)
-	local yInput = makeInput("Y", 0.4, 0.25)
-	local zInput = makeInput("Z", 0.7, 0.25)
-
-	makeLabel("Rotation (Roll, Pitch, Yaw):", 0.45)
-	local rollInput = makeInput("Roll", 0.1, 0.55)
-	local pitchInput = makeInput("Pitch", 0.4, 0.55)
-	local yawInput = makeInput("Yaw", 0.7, 0.55)
 
 	local applyButton = Instance.new("TextButton")
 	applyButton.Text = "Apply Changes"
-	applyButton.Size = UDim2.new(0.8, 0, 0, 40)
+	applyButton.Size = UDim2.new(0.8, 0, 0, 30)
 	applyButton.Position = UDim2.new(0.1, 0, 0.75, 0)
 	applyButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
 	applyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	applyButton.Font = Enum.Font.SourceSansBold
-	applyButton.TextSize = 18
+	applyButton.TextSize = 16
 	applyButton.Parent = frame
 	Instance.new("UICorner", applyButton).CornerRadius = UDim.new(0, 8)
 
-	applyButton.MouseButton1Click:Connect(function()
-		local tool = findToolInCharacter()
-		if tool then
-			local x = tonumber(xInput.Text) or NEW_POSITION.X
-			local y = tonumber(yInput.Text) or NEW_POSITION.Y
-			local z = tonumber(zInput.Text) or NEW_POSITION.Z
-			local roll = tonumber(rollInput.Text) or NEW_ROTATION[1]
-			local pitch = tonumber(pitchInput.Text) or NEW_ROTATION[2]
-			local yaw = tonumber(yawInput.Text) or NEW_ROTATION[3]
-			setToolGrip(tool, Vector3.new(x, y, z), roll, pitch, yaw)
-			reEquipTool(tool)
-		end
+	applyButton.MouseButton1Click:Connect(applySettings)
+
+	-- زر إدارة الإعدادات
+	local settingsButton = Instance.new("TextButton")
+	settingsButton.Text = "⚙️"
+	settingsButton.Size = UDim2.new(0, 40, 0, 40)
+	settingsButton.Position = UDim2.new(0.8, 0, 0.83, 0)
+	settingsButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	settingsButton.Font = Enum.Font.SourceSansBold
+	settingsButton.TextSize = 20
+	settingsButton.Parent = frame
+	Instance.new("UICorner", settingsButton).CornerRadius = UDim.new(0, 8)
+
+	-- إنشاء واجهة إدارة الإعدادات
+	local settingsManager = createSettingsManagerUI(frame, values, sliders, applySettings)
+
+	settingsButton.MouseButton1Click:Connect(function()
+		settingsManager.show()
 	end)
 
 	local toggleButton = Instance.new("TextButton")
@@ -146,23 +583,26 @@ local function createUI()
 	toggleButton.Parent = screenGui
 	Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(1, 0)
 
-	makeDraggable(toggleButton)
+	-- تطبيق نظام السحب المحسن
 	makeDraggable(frame)
+	makeDraggable(toggleButton)
 
 	toggleButton.MouseButton1Click:Connect(function()
 		frame.Visible = not frame.Visible
 		toggleButton.Text = frame.Visible and "≡" or "+"
 	end)
+	
+	-- تحميل الإعدادات تلقائياً عند فتح الواجهة
+	spawn(function()
+		-- لا يوجد تحميل تلقائي الآن، سيتم التحكم به عبر واجهة الإعدادات
+	end)
 end
 
 createUI()
-local CoreGui = game:GetService("StarterGui")
 
+local CoreGui = game:GetService("StarterGui")
 CoreGui:SetCore("SendNotification", {
-	Title = "made by Rozniw";
-	Text = "tool editor loaded";
-	Duration = 5;
-	
-	Button1 = "Fuck Roblox";
-	Button2 = "Fuck Roblox";
+	Title = "made by Rozniw",
+	Text = "تم تحميل محرر الأدوات مع نظام الإعدادات المتقدم",
+	Duration = 5,
 })
