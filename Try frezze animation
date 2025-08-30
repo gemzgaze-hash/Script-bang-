@@ -202,7 +202,6 @@ local function createGUI()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
     end)
 
-
 -- نسخ الـ ID
 local animator = humanoid:WaitForChild("Animator")
 animator.AnimationPlayed:Connect(function(track)
@@ -214,16 +213,6 @@ animator.AnimationPlayed:Connect(function(track)
         end
     end
 end)
-
-animBtn.MouseButton1Click:Connect(function()
-    if currentAnimId then
-        if setclipboard then
-            setclipboard(currentAnimId)
-            print("تم نسخ Animation ID:", currentAnimId)
-        end
-    end
-end)
-
 
     -- وظائف تشغيل/إيقاف/تجميد/حفظ الأنيميشينات
     playBtn.MouseButton1Click:Connect(function()
