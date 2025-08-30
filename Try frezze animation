@@ -174,6 +174,8 @@ local function createGUI()
     local currentTrack = nil
     local scrollingFlag = false
     local scrollSpeed = 10
+    local currentGroupTracks = {}  -- لتخزين كل الأنيميشنات في حالة تشغيل مجموعة
+    local currentTrack = nil        -- للتأكد من Track الفردي الحالي
 
     -- وظائف التمرير
     local function startScroll(direction)
@@ -206,16 +208,51 @@ animator.AnimationPlayed:Connect(function(track)
     end
 end)
 
-copyIdBtn.MouseButton1Click:Connect(function()
-    if currentAnimId and setclipboard then
-        setclipboard(currentAnimId)
-        print("تم نسخ Animation ID:", currentAnimId)
+-- زر Loop Animation بديل Copy ID
+local loopAnimBtn = Instance.new("TextButton")
+loopAnimBtn.Size = copyIdBtn.Size      -- نفس حجم زر نسخ ID
+loopAnimBtn.Position = copyIdBtn.Position -- نفس موقع زر نسخ ID
+loopAnimBtn.Text = "Loop"
+loopAnimBtn.Parent = copyIdBtn.Parent -- نفس الأب
+
+-- متغير لتحديد حالة التكرار
+local isLooping = false
+
+-- الحدث عند الضغط على الزر
+loopAnimBtn.MouseButton1Click:Connect(function()
+    isLooping = not isLooping -- تبديل الحالة
+
+    if isLooping then
+        loopAnimBtn.Text = "Stop Loop"
+
+        -- التكرار لكل Track في المجموعة إذا موجودة
+        if currentGroupTracks and #currentGroupTracks > 0 then
+            for _, track in ipairs(currentGroupTracks) do
+                track.Stopped:Connect(function()
+                    if isLooping then
+                        track:Play()
+                    end
+                end)
+            end
+        elseif currentTrack then
+            -- التكرار للأنيميشن الفردي
+            currentTrack.Stopped:Connect(function()
+                if isLooping then
+                    currentTrack:Play()
+                end
+            end)
+        else
+            warn("لا يوجد أنيميشن للتكرار")
+        end
+
+    else
+        loopAnimBtn.Text = "Loop"
+        -- عند الإيقاف، لن يتم إعادة تشغيل أي Track عند انتهاءه
     end
 end)
 
     -- وظائف تشغيل/إيقاف/تجميد/حفظ الأنيميشينات
     playBtn.MouseButton1Click:Connect(function()
-        local animId = "rbxassetid://" .. idBox.Text
         local anim = Instance.new("Animation")
         anim.AnimationId = animId
         local track = humanoid:LoadAnimation(anim)
@@ -235,9 +272,13 @@ end)
 
     applySpeedBtn.MouseButton1Click:Connect(function()
         local speed = tonumber(speedBox.Text) or 1
-        if currentTrack then
-            currentTrack:AdjustSpeed(speed)
-        end
+        if currentGroupTracks and #currentGroupTracks > 0 then
+    for _, track in ipairs(currentGroupTracks) do
+        track:AdjustSpeed(newSpeed)
+    end
+elseif currentTrack then
+    currentTrack:AdjustSpeed(newSpeed)
+end
     end)
 
     freezeBtn.MouseButton1Click:Connect(function()
@@ -267,17 +308,34 @@ end)
     end)
 
     saveBtn.MouseButton1Click:Connect(function()
-        if currentAnimId then
-            local name = "رقصة " .. #dances + 1
-            table.insert(dances, {
-                Name = name,
-                AnimationId = currentAnimId,
-                FreezeTime = currentTrack and currentTrack.TimePosition or 0
-            })
-            saveToFile()
-            refreshList()
-        end
-    end)
+    -- تحقق من وجود أنيميشن نشط قبل الحفظ
+    if not currentAnimId then
+        warn("لا يوجد أنيميشن محدد للحفظ")
+        return
+    end
+
+    -- تحديث Track الحالي للتأكد من حفظ FreezeTime الصحيح
+    local freezeTime = 0
+    if currentTrack then
+        freezeTime = currentTrack.TimePosition
+    end
+
+    -- إنشاء اسم للرقصة
+    local name = "رقصة " .. (#dances + 1)
+
+    -- إضافة الرقصة إلى القائمة
+    table.insert(dances, {
+        Name = name,
+        AnimationId = currentAnimId,
+        FreezeTime = freezeTime
+    })
+
+    -- حفظ البيانات إلى الملف
+    saveToFile()
+
+    -- تحديث واجهة المستخدم
+    refreshList()
+end)
 
     saveGroupBtn.MouseButton1Click:Connect(function()
         if #activeTracks > 0 then
