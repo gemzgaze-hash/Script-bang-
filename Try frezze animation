@@ -117,14 +117,6 @@ local function createGUI()
     applySpeedBtn.BackgroundColor3 = Color3.fromRGB(60,100,100)
     applySpeedBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- زر نسخ الأيدي (الزر القديم)
-    local copyIdBtn = Instance.new("TextButton", main)
-    copyIdBtn.Position = UDim2.new(0, 240, 0, 45)
-    copyIdBtn.Size = UDim2.new(0, 70, 0, 30)
-    copyIdBtn.Text = "📋 ID"
-    copyIdBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
-    copyIdBtn.TextColor3 = Color3.new(1,1,1)
-
     -- أزرار تجميد
     local freezeBtn = Instance.new("TextButton", main)
     freezeBtn.Position = UDim2.new(0, 10, 0, 80)
@@ -211,6 +203,13 @@ animator.AnimationPlayed:Connect(function(track)
             currentAnimId = id
             animBtn.Text = id
         end
+    end
+end)
+
+copyIdBtn.MouseButton1Click:Connect(function()
+    if currentAnimId and setclipboard then
+        setclipboard(currentAnimId)
+        print("تم نسخ Animation ID:", currentAnimId)
     end
 end)
 
