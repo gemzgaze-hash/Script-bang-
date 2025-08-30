@@ -86,6 +86,15 @@ local function createGUI()
     playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
     playBtn.TextColor3 = Color3.new(1,1,1)
 
+-- زر Loop Animation بديل Copy ID
+local loopAnimBtn = Instance.new("TextButton")
+loopAnimBtn.Size = copyIdBtn.Size      -- نفس حجم زر نسخ ID
+loopAnimBtn.Position = copyIdBtn.Position -- نفس موقع زر نسخ ID
+loopAnimBtn.Text = "Loop"
+loopAnimBtn.Parent = copyIdBtn.Parent -- نفس الأب
+
+-- متغير لتحديد حالة التكرار
+local isLooping = false
 
     local stopAllBtn = Instance.new("TextButton", main)
     stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
@@ -207,16 +216,6 @@ animator.AnimationPlayed:Connect(function(track)
         end
     end
 end)
-
--- زر Loop Animation بديل Copy ID
-local loopAnimBtn = Instance.new("TextButton")
-loopAnimBtn.Size = copyIdBtn.Size      -- نفس حجم زر نسخ ID
-loopAnimBtn.Position = copyIdBtn.Position -- نفس موقع زر نسخ ID
-loopAnimBtn.Text = "Loop"
-loopAnimBtn.Parent = copyIdBtn.Parent -- نفس الأب
-
--- متغير لتحديد حالة التكرار
-local isLooping = false
 
 -- الحدث عند الضغط على الزر
 loopAnimBtn.MouseButton1Click:Connect(function()
