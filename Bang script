@@ -106,16 +106,16 @@ local function startBangBack()
         if moveDir.Magnitude > 0.05 then
             local facePos
             if lockedFace == "front" then
-                facePos = tRoot.Position
+                facePos = tRoot.Position + Vector3.new(0, currentHeight, 0)
             elseif lockedFace == "back" then
-                facePos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+                facePos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2 + Vector3.new(0, currentHeight, 0)
             else
-                facePos = tRoot.Position
+                facePos = tRoot.Position + Vector3.new(0, currentHeight, 0)
             end
-            myRoot.CFrame = CFrame.new(
-                myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
-                facePos
-            )
+            
+            -- حساب الموضع الجديد مع الحفاظ على اتجاه الوجه
+            local newPosition = myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt))
+            myRoot.CFrame = CFrame.new(newPosition, facePos)
         end
     end)
 end
@@ -166,16 +166,16 @@ local function startBangFront()
         if moveDir.Magnitude > 0.05 then
             local facePos
             if lockedFace == "front" then
-                facePos = tRoot.Position
+                facePos = tRoot.Position + Vector3.new(0, currentHeight, 0)
             elseif lockedFace == "back" then
-                facePos = tRoot.Position + tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+                facePos = tRoot.Position + tRoot.CFrame.LookVector * BASE_DISTANCE * 2 + Vector3.new(0, currentHeight, 0)
             else
-                facePos = tRoot.Position
+                facePos = tRoot.Position + Vector3.new(0, currentHeight, 0)
             end
-            myRoot.CFrame = CFrame.new(
-                myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
-                facePos
-            )
+            
+            -- حساب الموضع الجديد مع الحفاظ على اتجاه الوجه
+            local newPosition = myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt))
+            myRoot.CFrame = CFrame.new(newPosition, facePos)
         end
     end)
 end
@@ -200,10 +200,11 @@ local function turnFaceToTarget(isBack)
     local tRoot = tChar:FindFirstChild("HumanoidRootPart")
     if not (myRoot and tRoot) then return end
     if isBack then
-        local backPos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+        local backPos = tRoot.Position - tRoot.CFrame.LookVector * BASE_DISTANCE * 2 + Vector3.new(0, currentHeight, 0)
         myRoot.CFrame = CFrame.new(myRoot.Position, backPos)
     else
-        myRoot.CFrame = CFrame.new(myRoot.Position, tRoot.Position)
+        local frontPos = tRoot.Position + Vector3.new(0, currentHeight, 0)
+        myRoot.CFrame = CFrame.new(myRoot.Position, frontPos)
     end
 end
 
@@ -231,7 +232,7 @@ OpenBtn.Draggable = true
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
 local Panel = Instance.new("Frame", ScreenGui)
-Panel.Size = UDim2.new(0, 210, 0, 520) -- زيادة الارتفاع لإضافة عناصر الارتفاع
+Panel.Size = UDim2.new(0, 210, 0, 520)
 Panel.Position = UDim2.new(0, 100, 0, 100)
 Panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Panel.Visible = false
