@@ -19,6 +19,9 @@ local OSCILLATION_SPEED = 3
 local timeElapsedBack = 0
 local timeElapsedFront = 0
 local lockedFace = nil -- nil: تلقائي, "front": وجه للضحية, "back": خلف الضحية
+local currentHeight = 0 -- الارتفاع الحالي
+local targetHeight = 0 -- الارتفاع المستهدف
+local heightChangeSpeed = 5 -- سرعة تغيير الارتفاع
 
 -- وظائف عامة
 local function getGuiParent()
@@ -84,9 +87,21 @@ local function startBangBack()
         local myRoot = myChar:FindFirstChild("HumanoidRootPart")
         local tRoot = tChar:FindFirstChild("HumanoidRootPart")
         if not (myRoot and tRoot) then return end
+        
+        -- تحديث الارتفاع تدريجياً
+        if currentHeight ~= targetHeight then
+            local diff = targetHeight - currentHeight
+            local change = math.sign(diff) * math.min(math.abs(diff), heightChangeSpeed * dt)
+            currentHeight = currentHeight + change
+        end
+        
         timeElapsedBack = timeElapsedBack + dt
         local oscillation = math.sin(timeElapsedBack * OSCILLATION_SPEED) * OSCILLATION_RANGE
         local desiredPos = tRoot.Position - (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
+        
+        -- تطبيق الارتفاع
+        desiredPos = Vector3.new(desiredPos.X, desiredPos.Y + currentHeight, desiredPos.Z)
+        
         local moveDir = (desiredPos - myRoot.Position)
         if moveDir.Magnitude > 0.05 then
             local facePos
@@ -132,22 +147,31 @@ local function startBangFront()
         local myRoot = myChar:FindFirstChild("HumanoidRootPart")
         local tRoot = tChar:FindFirstChild("HumanoidRootPart")
         if not (myRoot and tRoot) then return end
+        
+        -- تحديث الارتفاع تدريجياً
+        if currentHeight ~= targetHeight then
+            local diff = targetHeight - currentHeight
+            local change = math.sign(diff) * math.min(math.abs(diff), heightChangeSpeed * dt)
+            currentHeight = currentHeight + change
+        end
+        
         timeElapsedFront = timeElapsedFront + dt
         local oscillation = math.sin(timeElapsedFront * OSCILLATION_SPEED) * OSCILLATION_RANGE
         local desiredPos = tRoot.Position + (tRoot.CFrame.LookVector * (BASE_DISTANCE + oscillation))
+        
+        -- تطبيق الارتفاع
+        desiredPos = Vector3.new(desiredPos.X, desiredPos.Y + currentHeight, desiredPos.Z)
+        
         local moveDir = (desiredPos - myRoot.Position)
         if moveDir.Magnitude > 0.05 then
             local facePos
-if lockedFace == "front" then
-    -- لف وجهك على الضحية
-    facePos = tRoot.Position
-elseif lockedFace == "back" then
-    -- لف وجهك على الجهة الثانية (العكس)
-    facePos = tRoot.Position + tRoot.CFrame.LookVector * BASE_DISTANCE * 2
-else
-    -- الوضع الافتراضي: الضحية
-    facePos = tRoot.Position
-end
+            if lockedFace == "front" then
+                facePos = tRoot.Position
+            elseif lockedFace == "back" then
+                facePos = tRoot.Position + tRoot.CFrame.LookVector * BASE_DISTANCE * 2
+            else
+                facePos = tRoot.Position
+            end
             myRoot.CFrame = CFrame.new(
                 myRoot.Position + moveDir.Unit * math.min(moveDir.Magnitude, (BANG_SPEED * dt)),
                 facePos
@@ -207,7 +231,7 @@ OpenBtn.Draggable = true
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
 local Panel = Instance.new("Frame", ScreenGui)
-Panel.Size = UDim2.new(0, 210, 0, 460)
+Panel.Size = UDim2.new(0, 210, 0, 520) -- زيادة الارتفاع لإضافة عناصر الارتفاع
 Panel.Position = UDim2.new(0, 100, 0, 100)
 Panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Panel.Visible = false
@@ -284,9 +308,28 @@ local InputBaseDist = makeBox("المسافة الأساسية", 122)
 local InputOscRange = makeBox("مدى الارتداد", 150)
 local InputOscSpeed = makeBox("سرعة الارتداد", 178)
 
+-- عناصر التحكم في الارتفاع
+local InputHeight = makeBox("الارتفاع الحالي", 206)
+InputHeight.Text = "0"
+
+local InputTargetHeight = makeBox("الارتفاع المستهدف", 234)
+InputTargetHeight.Text = "0"
+
+local InputHeightSpeed = makeBox("سرعة تغيير الارتفاع", 262)
+InputHeightSpeed.Text = "5"
+
+local ApplyHeightBtn = Instance.new("TextButton", Panel)
+ApplyHeightBtn.Size = UDim2.new(1, -14, 0, 24)
+ApplyHeightBtn.Position = UDim2.new(0, 7, 0, 290)
+ApplyHeightBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+ApplyHeightBtn.Text = "تطبيق الارتفاع"
+ApplyHeightBtn.TextColor3 = Color3.new(1, 1, 1)
+ApplyHeightBtn.TextSize = 12
+Instance.new("UICorner", ApplyHeightBtn).CornerRadius = UDim.new(0, 6)
+
 local StartBtnBack = Instance.new("TextButton", Panel)
 StartBtnBack.Size = UDim2.new(1, -14, 0, 24)
-StartBtnBack.Position = UDim2.new(0, 7, 0, 206)
+StartBtnBack.Position = UDim2.new(0, 7, 0, 318)
 StartBtnBack.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
 StartBtnBack.Text = "تشغيل Bang خلفي"
 StartBtnBack.TextColor3 = Color3.new(1, 1, 1)
@@ -295,7 +338,7 @@ Instance.new("UICorner", StartBtnBack).CornerRadius = UDim.new(0, 6)
 
 local StartBtnFront = Instance.new("TextButton", Panel)
 StartBtnFront.Size = UDim2.new(1, -14, 0, 24)
-StartBtnFront.Position = UDim2.new(0, 7, 0, 234)
+StartBtnFront.Position = UDim2.new(0, 7, 0, 346)
 StartBtnFront.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 StartBtnFront.Text = "تشغيل Bang أمامي"
 StartBtnFront.TextColor3 = Color3.new(1, 1, 1)
@@ -304,18 +347,18 @@ Instance.new("UICorner", StartBtnFront).CornerRadius = UDim.new(0, 6)
 
 local StopBtn = Instance.new("TextButton", Panel)
 StopBtn.Size = UDim2.new(1, -14, 0, 24)
-StopBtn.Position = UDim2.new(0, 7, 0, 262)
+StopBtn.Position = UDim2.new(0, 7, 0, 374)
 StopBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 StopBtn.Text = "إيقاف الكل"
 StopBtn.TextColor3 = Color3.new(1, 1, 1)
 StopBtn.TextSize = 12
 Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
 
-local InputAnimSpeed = makeBox("سرعة الأنيميشن", 290)
+local InputAnimSpeed = makeBox("سرعة الأنيميشن", 402)
 
 local ApplyAnimSpeedBtn = Instance.new("TextButton", Panel)
 ApplyAnimSpeedBtn.Size = UDim2.new(1, -14, 0, 24)
-ApplyAnimSpeedBtn.Position = UDim2.new(0, 7, 0, 318)
+ApplyAnimSpeedBtn.Position = UDim2.new(0, 7, 0, 430)
 ApplyAnimSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
 ApplyAnimSpeedBtn.Text = "تطبيق السرعة"
 ApplyAnimSpeedBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -324,7 +367,7 @@ Instance.new("UICorner", ApplyAnimSpeedBtn).CornerRadius = UDim.new(0, 6)
 
 local FreezeAnimBtn = Instance.new("TextButton", Panel)
 FreezeAnimBtn.Size = UDim2.new(1, -14, 0, 24)
-FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 346)
+FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 458)
 FreezeAnimBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
 FreezeAnimBtn.Text = "تجميد الأنيميشن"
 FreezeAnimBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -333,7 +376,7 @@ Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
 
 local FaceBtn = Instance.new("TextButton", Panel)
 FaceBtn.Size = UDim2.new(0.5, -10, 0, 24)
-FaceBtn.Position = UDim2.new(0, 7, 0, 374)
+FaceBtn.Position = UDim2.new(0, 7, 0, 486)
 FaceBtn.BackgroundColor3 = Color3.fromRGB(80, 130, 250)
 FaceBtn.Text = "لف وجهك للضحية"
 FaceBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -342,7 +385,7 @@ Instance.new("UICorner", FaceBtn).CornerRadius = UDim.new(0, 6)
 
 local FaceBackBtn = Instance.new("TextButton", Panel)
 FaceBackBtn.Size = UDim2.new(0.5, -10, 0, 24)
-FaceBackBtn.Position = UDim2.new(0.5, 7, 0, 374)
+FaceBackBtn.Position = UDim2.new(0.5, 7, 0, 486)
 FaceBackBtn.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
 FaceBackBtn.Text = "لف وجهك للجهة الثانية"
 FaceBackBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -363,6 +406,24 @@ FreezeAnimBtn.MouseButton1Click:Connect(function()
     local currentTrack = animTrackBack or animTrackFront
     if currentTrack then
         currentTrack:AdjustSpeed(0)
+    end
+end)
+
+ApplyHeightBtn.MouseButton1Click:Connect(function()
+    local heightVal = tonumber(InputHeight.Text)
+    local targetHeightVal = tonumber(InputTargetHeight.Text)
+    local speedVal = tonumber(InputHeightSpeed.Text)
+    
+    if heightVal then
+        currentHeight = heightVal
+    end
+    
+    if targetHeightVal then
+        targetHeight = targetHeightVal
+    end
+    
+    if speedVal and speedVal > 0 then
+        heightChangeSpeed = speedVal
     end
 end)
 
