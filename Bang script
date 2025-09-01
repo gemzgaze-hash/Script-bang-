@@ -22,6 +22,7 @@ local lockedFace = nil -- nil: تلقائي, "front": وجه للضحية, "back
 local currentHeight = 0 -- الارتفاع الحالي
 local targetHeight = 0 -- الارتفاع المستهدف
 local heightChangeSpeed = 5 -- سرعة تغيير الارتفاع
+local isHeightChanging = false -- هل يتم تغيير الارتفاع حالياً؟
 
 -- وظائف عامة
 local function getGuiParent()
@@ -67,6 +68,15 @@ local function stopAnim(track)
     end
 end
 
+-- وظيفة لتحديث الارتفاع
+local function updateHeight(dt)
+    if currentHeight ~= targetHeight and isHeightChanging then
+        local diff = targetHeight - currentHeight
+        local change = math.sign(diff) * math.min(math.abs(diff), heightChangeSpeed * dt)
+        currentHeight = currentHeight + change
+    end
+end
+
 -- Bang الخلفي
 local function startBangBack()
     if bangingBack then return end
@@ -88,12 +98,8 @@ local function startBangBack()
         local tRoot = tChar:FindFirstChild("HumanoidRootPart")
         if not (myRoot and tRoot) then return end
         
-        -- تحديث الارتفاع تدريجياً
-        if currentHeight ~= targetHeight then
-            local diff = targetHeight - currentHeight
-            local change = math.sign(diff) * math.min(math.abs(diff), heightChangeSpeed * dt)
-            currentHeight = currentHeight + change
-        end
+        -- تحديث الارتفاع
+        updateHeight(dt)
         
         timeElapsedBack = timeElapsedBack + dt
         local oscillation = math.sin(timeElapsedBack * OSCILLATION_SPEED) * OSCILLATION_RANGE
@@ -148,12 +154,8 @@ local function startBangFront()
         local tRoot = tChar:FindFirstChild("HumanoidRootPart")
         if not (myRoot and tRoot) then return end
         
-        -- تحديث الارتفاع تدريجياً
-        if currentHeight ~= targetHeight then
-            local diff = targetHeight - currentHeight
-            local change = math.sign(diff) * math.min(math.abs(diff), heightChangeSpeed * dt)
-            currentHeight = currentHeight + change
-        end
+        -- تحديث الارتفاع
+        updateHeight(dt)
         
         timeElapsedFront = timeElapsedFront + dt
         local oscillation = math.sin(timeElapsedFront * OSCILLATION_SPEED) * OSCILLATION_RANGE
@@ -349,7 +351,7 @@ Instance.new("UICorner", StartBtnFront).CornerRadius = UDim.new(0, 6)
 local StopBtn = Instance.new("TextButton", Panel)
 StopBtn.Size = UDim2.new(1, -14, 0, 24)
 StopBtn.Position = UDim2.new(0, 7, 0, 374)
-StopBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+StopBtn.BackgroundColor3 = Color极速赛车开奖结果记录
 StopBtn.Text = "إيقاف الكل"
 StopBtn.TextColor3 = Color3.new(1, 1, 1)
 StopBtn.TextSize = 12
@@ -366,7 +368,7 @@ ApplyAnimSpeedBtn.TextColor3 = Color3.new(1, 1, 1)
 ApplyAnimSpeedBtn.TextSize = 12
 Instance.new("UICorner", ApplyAnimSpeedBtn).CornerRadius = UDim.new(0, 6)
 
-local FreezeAnimBtn = Instance.new("TextButton", Panel)
+local FreezeAnimBtn =极速赛车开奖结果记录
 FreezeAnimBtn.Size = UDim2.new(1, -14, 0, 24)
 FreezeAnimBtn.Position = UDim2.new(0, 7, 0, 458)
 FreezeAnimBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
@@ -377,10 +379,10 @@ Instance.new("UICorner", FreezeAnimBtn).CornerRadius = UDim.new(0, 6)
 
 local FaceBtn = Instance.new("TextButton", Panel)
 FaceBtn.Size = UDim2.new(0.5, -10, 0, 24)
-FaceBtn.Position = UDim2.new(0, 7, 0, 486)
+FaceBtn.Position = UDim2.new(0极速赛车开奖结果记录 7, 0, 486)
 FaceBtn.BackgroundColor3 = Color3.fromRGB(80, 130, 250)
 FaceBtn.Text = "لف وجهك للضحية"
-FaceBtn.TextColor3 = Color3.new(1, 1, 1)
+FaceBtn.TextColor极速赛车开奖结果记录 = Color3.new(1, 1, 1)
 FaceBtn.TextSize = 12
 Instance.new("UICorner", FaceBtn).CornerRadius = UDim.new(0, 6)
 
@@ -404,7 +406,7 @@ ApplyAnimSpeedBtn.MouseButton1Click:Connect(function()
 end)
 
 FreezeAnimBtn.MouseButton1Click:Connect(function()
-    local currentTrack = animTrackBack or animTrackFront
+    local currentTrack = anim极速赛车开奖结果记录 or animTrackFront
     if currentTrack then
         currentTrack:AdjustSpeed(0)
     end
@@ -426,6 +428,8 @@ ApplyHeightBtn.MouseButton1Click:Connect(function()
     if speedVal and speedVal > 0 then
         heightChangeSpeed = speedVal
     end
+    
+    isHeightChanging = true
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
@@ -484,6 +488,7 @@ StopBtn.MouseButton1Click:Connect(function()
     stopBangBack()
     stopBangFront()
     lockedFace = nil
+    isHeightChanging = false
 end)
 
 FaceBtn.MouseButton1Click:Connect(function()
