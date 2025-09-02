@@ -16,8 +16,8 @@ ScreenGui.Parent = player.PlayerGui
 ScreenGui.Enabled = true
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 450)
-MainFrame.Position = UDim2.new(0, 50, 0.5, -225)
+MainFrame.Size = UDim2.new(0, 350, 0, 500)
+MainFrame.Position = UDim2.new(0, 50, 0.5, -250)
 MainFrame.AnchorPoint = Vector2.new(0, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
@@ -45,6 +45,7 @@ Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
+-- زر فتح/إغلاق
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0, 30, 0, 30)
 ToggleButton.Position = UDim2.new(1, -30, 0, 0)
@@ -65,6 +66,7 @@ ContentFrame.Position = UDim2.new(0, 10, 0, 35)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
+-- قائمة الحركات
 local AnimationsList = Instance.new("ScrollingFrame")
 AnimationsList.Size = UDim2.new(1, 0, 0, 250)
 AnimationsList.Position = UDim2.new(0, 0, 0, 0)
@@ -83,12 +85,14 @@ local UICornerList = Instance.new("UICorner")
 UICornerList.CornerRadius = UDim.new(0, 8)
 UICornerList.Parent = AnimationsList
 
+-- إطار الأزرار
 local ButtonsFrame = Instance.new("Frame")
-ButtonsFrame.Size = UDim2.new(1, 0, 0, 150)
+ButtonsFrame.Size = UDim2.new(1, 0, 0, 200)
 ButtonsFrame.Position = UDim2.new(0, 0, 0, 260)
 ButtonsFrame.BackgroundTransparency = 1
 ButtonsFrame.Parent = ContentFrame
 
+-- TextBox لإدخال Animation ID
 local AnimationIdInput = Instance.new("TextBox")
 AnimationIdInput.Size = UDim2.new(1, 0, 0, 30)
 AnimationIdInput.Position = UDim2.new(0, 0, 0, 0)
@@ -100,14 +104,27 @@ AnimationIdInput.Font = Enum.Font.Gotham
 AnimationIdInput.TextSize = 14
 AnimationIdInput.Parent = ButtonsFrame
 
+-- TextBox لتحديد اسم اللاعب/الضحية
+local TargetInput = Instance.new("TextBox")
+TargetInput.Size = UDim2.new(1, 0, 0, 30)
+TargetInput.Position = UDim2.new(0, 0, 0, 35)
+TargetInput.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+TargetInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+TargetInput.PlaceholderText = "أدخل اسم اللاعب/الضحية هنا"
+TargetInput.Text = ""
+TargetInput.Font = Enum.Font.Gotham
+TargetInput.TextSize = 14
+TargetInput.Parent = ButtonsFrame
+
+-- أزرار التحكم
 local ControlButtons = Instance.new("Frame")
 ControlButtons.Size = UDim2.new(1, 0, 0, 30)
-ControlButtons.Position = UDim2.new(0, 0, 0, 40)
+ControlButtons.Position = UDim2.new(0, 0, 0, 70)
 ControlButtons.BackgroundTransparency = 1
 ControlButtons.Parent = ButtonsFrame
 
 local PlayButton = Instance.new("TextButton")
-PlayButton.Size = UDim2.new(0.3, -5, 1, 0)
+PlayButton.Size = UDim2.new(0.22, -5, 1, 0)
 PlayButton.Position = UDim2.new(0, 0, 0, 0)
 PlayButton.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 PlayButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -116,9 +133,19 @@ PlayButton.Font = Enum.Font.Gotham
 PlayButton.TextSize = 14
 PlayButton.Parent = ControlButtons
 
+local StopButton = Instance.new("TextButton")
+StopButton.Size = UDim2.new(0.22, -5, 1, 0)
+StopButton.Position = UDim2.new(0.23, 0, 0, 0)
+StopButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+StopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopButton.Text = "إيقاف"
+StopButton.Font = Enum.Font.Gotham
+StopButton.TextSize = 14
+StopButton.Parent = ControlButtons
+
 local FreezeButton = Instance.new("TextButton")
-FreezeButton.Size = UDim2.new(0.3, -5, 1, 0)
-FreezeButton.Position = UDim2.new(0.35, 0, 0, 0)
+FreezeButton.Size = UDim2.new(0.22, -5, 1, 0)
+FreezeButton.Position = UDim2.new(0.46, 0, 0, 0)
 FreezeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
 FreezeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FreezeButton.Text = "تجميد"
@@ -127,8 +154,8 @@ FreezeButton.TextSize = 14
 FreezeButton.Parent = ControlButtons
 
 local SaveButton = Instance.new("TextButton")
-SaveButton.Size = UDim2.new(0.3, 0, 1, 0)
-SaveButton.Position = UDim2.new(0.7, 0, 0, 0)
+SaveButton.Size = UDim2.new(0.22, -5, 1, 0)
+SaveButton.Position = UDim2.new(0.69, 0, 0, 0)
 SaveButton.BackgroundColor3 = Color3.fromRGB(60, 100, 180)
 SaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveButton.Text = "حفظ"
@@ -138,7 +165,7 @@ SaveButton.Parent = ControlButtons
 
 local BangButtons = Instance.new("Frame")
 BangButtons.Size = UDim2.new(1, 0, 0, 30)
-BangButtons.Position = UDim2.new(0, 0, 0, 80)
+BangButtons.Position = UDim2.new(0, 0, 0, 105)
 BangButtons.BackgroundTransparency = 1
 BangButtons.Parent = ButtonsFrame
 
@@ -148,6 +175,7 @@ FrontBangButton.Position = UDim2.new(0, 0, 0, 0)
 FrontBangButton.BackgroundColor3 = Color3.fromRGB(180, 100, 60)
 FrontBangButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FrontBangButton.Text = "Front Bang"
+FrontBangButton.Font = Enum.Font.G
 FrontBangButton.Font = Enum.Font.Gotham
 FrontBangButton.TextSize = 14
 FrontBangButton.Parent = BangButtons
@@ -162,23 +190,18 @@ BackBangButton.Font = Enum.Font.Gotham
 BackBangButton.TextSize = 14
 BackBangButton.Parent = BangButtons
 
-local UICornerBtn = Instance.new("UICorner")
-UICornerBtn.CornerRadius = UDim.new(0, 6)
-UICornerBtn.Parent = PlayButton
-UICornerBtn:Clone().Parent = FreezeButton
-UICornerBtn:Clone().Parent = SaveButton
-UICornerBtn:Clone().Parent = AnimationIdInput
-UICornerBtn:Clone().Parent = FrontBangButton
-UICornerBtn:Clone().Parent = BackBangButton
+-- إضافة UICorner لجميع الأزرار
+for _, btn in pairs({PlayButton, StopButton, FreezeButton, SaveButton, AnimationIdInput, TargetInput, FrontBangButton, BackBangButton}) do
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+end
 
 -- المتغيرات العامة
-local animations = {}
 local currentAnimation = nil
-local animationTracks = {}
 local savedAnimations = {}
-local isUIVisible = true
 local isFrozen = false
-local bangSpeed = 50 -- سرعة حركة البانق
+local bangSpeed = 50
 
 -- جعل النافذة قابلة للسحب
 local dragging = false
@@ -217,20 +240,127 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- زر فتح/إغلاق الواجهة
+-- زر فتح/إغلاق
 ToggleButton.MouseButton1Click:Connect(function()
-    isUIVisible = not isUIVisible
-    ContentFrame.Visible = isUIVisible
-    if isUIVisible then
+    ContentFrame.Visible = not ContentFrame.Visible
+    if ContentFrame.Visible then
         ToggleButton.Text = "_"
-        MainFrame.Size = UDim2.new(0, 350, 0, 450)
+        MainFrame.Size = UDim2.new(0, 350, 0, 500)
     else
         ToggleButton.Text = "+"
         MainFrame.Size = UDim2.new(0, 350, 0, 30)
     end
 end)
 
--- تحميل الحركات المحفوظة
+-- تشغيل الحركة
+PlayButton.MouseButton1Click:Connect(function()
+    local animationId = tonumber(AnimationIdInput.Text)
+    if animationId and animationId > 0 then
+        if currentAnimation then
+            currentAnimation:Stop()
+        end
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://" .. animationId
+        currentAnimation = humanoid:LoadAnimation(animation)
+        currentAnimation:Play()
+        isFrozen = false
+    end
+end)
+
+-- إيقاف الحركة
+StopButton.MouseButton1Click:Connect(function()
+    if currentAnimation then
+        currentAnimation:Stop()
+        currentAnimation = nil
+        isFrozen = false
+    end
+end)
+
+-- تجميد الحركة
+FreezeButton.MouseButton1Click:Connect(function()
+    if currentAnimation then
+        isFrozen = not isFrozen
+        if isFrozen then
+            currentAnimation:AdjustSpeed(0)
+            FreezeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 180)
+            FreezeButton.Text = "إلغاء التجميد"
+        else
+            currentAnimation:AdjustSpeed(1)
+            FreezeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+            FreezeButton.Text = "تجميد"
+        end
+    end
+end)
+
+-- حفظ الحركة الحالية
+SaveButton.MouseButton1Click:Connect(function()
+    local animationId = tonumber(AnimationIdInput.Text)
+    if animationId and animationId > 0 then
+        local animationName = "Animation_" .. tostring(#savedAnimations + 1)
+        savedAnimations[animationName] = {id = animationId, frozen = isFrozen}
+        if writefile then
+            writefile("arceusx_animations.json", HttpService:JSONEncode(savedAnimations))
+        end
+        -- زر للقائمة
+        local animationButton = Instance.new("TextButton")
+        animationButton.Size = UDim2.new(1, 0, 0, 30)
+        animationButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+        animationButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        animationButton.Text = animationName .. " (" .. animationId .. ")"
+        animationButton.Font = Enum.Font.Gotham
+        animationButton.TextSize = 14
+        animationButton.Parent = AnimationsList
+        local uiCorner = Instance.new("UICorner")
+        uiCorner.CornerRadius = UDim.new(0, 6)
+        uiCorner.Parent = animationButton
+        animationButton.MouseButton1Click:Connect(function()
+            AnimationIdInput.Text = animationId
+        end)
+    end
+end)
+
+-- Front Bang
+FrontBangButton.MouseButton1Click:Connect(function()
+    local targetName = TargetInput.Text
+    local targetPlayer = Players:FindFirstChild(targetName)
+    if rootPart and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        local originalPosition = rootPart.Position
+        rootPart.CFrame = CFrame.new(targetRoot.Position + targetRoot.CFrame.LookVector * bangSpeed)
+        delay(0.2, function()
+            if rootPart then rootPart.CFrame = CFrame.new(originalPosition) end
+        end)
+    else
+        -- إذا لم يُدخل اسم الهدف
+        local originalPosition = rootPart.Position
+        rootPart.CFrame = rootPart.CFrame + rootPart.CFrame.LookVector * bangSpeed
+        delay(0.2, function()
+            if rootPart then rootPart.CFrame = CFrame.new(originalPosition) end
+        end)
+    end
+end)
+
+-- Back Bang
+BackBangButton.MouseButton1Click:Connect(function()
+    local targetName = TargetInput.Text
+    local targetPlayer = Players:FindFirstChild(targetName)
+    if rootPart and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        local originalPosition = rootPart.Position
+        rootPart.CFrame = CFrame.new(targetRoot.Position - targetRoot.CFrame.LookVector * bangSpeed)
+        delay(0.2, function()
+            if rootPart then rootPart.CFrame = CFrame.new(originalPosition) end
+        end)
+    else
+        local originalPosition = rootPart.Position
+        rootPart.CFrame = rootPart.CFrame - rootPart.CFrame.LookVector * bangSpeed
+        delay(0.2, function()
+            if rootPart then rootPart.CFrame = CFrame.new(originalPosition) end
+        end)
+    end
+end)
+
+-- تحميل الحركات المحفوظة عند البداية
 local function loadSavedAnimations()
     local success, result = pcall(function()
         if readfile then
@@ -238,7 +368,6 @@ local function loadSavedAnimations()
         end
         return {}
     end)
-    
     if success then
         savedAnimations = result
         for name, animData in pairs(savedAnimations) do
@@ -250,11 +379,9 @@ local function loadSavedAnimations()
             animationButton.Font = Enum.Font.Gotham
             animationButton.TextSize = 14
             animationButton.Parent = AnimationsList
-            
             local uiCorner = Instance.new("UICorner")
             uiCorner.CornerRadius = UDim.new(0, 6)
             uiCorner.Parent = animationButton
-            
             animationButton.MouseButton1Click:Connect(function()
                 AnimationIdInput.Text = animData.id
             end)
@@ -264,172 +391,4 @@ local function loadSavedAnimations()
     end
 end
 
--- حفظ الحركات إلى ملف JSON
-local function saveAnimations()
-    local success, error = pcall(function()
-        if writefile then
-            writefile("arceusx_animations.json", HttpService:JSONEncode(savedAnimations))
-        end
-    end)
-    
-    if not success then
-        warn("فشل في حفظ الحركات: " .. tostring(error))
-    end
-end
-
--- تشغيل الحركة
-PlayButton.MouseButton1Click:Connect(function()
-    local animationId = tonumber(AnimationIdInput.Text)
-    if animationId and animationId > 0 then
-        if currentAnimation then
-            currentAnimation:Stop()
-        end
-        
-        local animation = Instance.new("Animation")
-        animation.AnimationId = "rbxassetid://" .. animationId
-        
-        currentAnimation = humanoid:LoadAnimation(animation)
-        currentAnimation:Play()
-        isFrozen = false
-    end
-end)
-
--- تجميد الحركة الحالية
-FreezeButton.MouseButton1Click:Connect(function()
-    if currentAnimation then
-        isFrozen = not isFrozen
-        if isFrozen then
-            currentAnimation:AdjustSpeed(0) -- تجميد الحركة
-            FreezeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 180)
-            FreezeButton.Text = "إلغاء التجميد"
-        else
-            currentAnimation:AdjustSpeed(1) -- استئناف الحركة
-            FreezeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-            FreezeButton.Text = "تجميد"
-        end
-    end
-end)
-
--- حفظ الحركة الحالية
-SaveButton.MouseButton1Click:Connect(function()
-    local animationId = tonumber(AnimationIdInput.Text)
-    if animationId and animationId > 0 then
-        local animationName = "Animation_" .. tostring(#savedAnimations + 1) -- اسم تلقائي
-        savedAnimations[animationName] = {id = animationId, frozen = isFrozen}
-        saveAnimations()
-        
-        -- إضافة الزر للقائمة
-        local animationButton = Instance.new("TextButton")
-        animationButton.Size = UDim2.new(1, 0, 0, 30)
-        animationButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-        animationButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        animationButton.Text = animationName .. " (" .. animationId .. ")"
-        animationButton.Font = Enum.Font.Gotham
-        animationButton.TextSize = 14
-        animationButton.Parent = AnimationsList
-        
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(0, 6)
-        uiCorner.Parent = animationButton
-        
-        animationButton.MouseButton1Click:Connect(function()
-            AnimationIdInput.Text = animationId
-        end)
-    end
-end)
-
--- وظيفة البانق الأمامي
-FrontBangButton.MouseButton1Click:Connect(function()
-    if rootPart then
-        local originalPosition = rootPart.Position
-        local frontPosition = originalPosition + rootPart.CFrame.LookVector * bangSpeed
-        rootPart.CFrame = CFrame.new(frontPosition)
-        delay(0.2, function()
-            if rootPart then
-                rootPart.CFrame = CFrame.new(originalPosition)
-            end
-        end)
-    end
-end)
-
--- وظيفة البانق الخلفي
-BackBangButton.MouseButton1Click:Connect(function()
-    if rootPart then
-        local originalPosition = rootPart.Position
-        local backPosition = originalPosition - rootPart.CFrame.LookVector * bangSpeed
-        rootPart.CFrame = CFrame.new(backPosition)
-        delay(0.2, function()
-            if rootPart then
-                rootPart.CFrame = CFrame.new(originalPosition)
-            end
-        end)
-    end
-end)
-
--- تحميل الحركات المحفوظة عند البدء
 loadSavedAnimations()
-
--- إضافة بعض الحركات الافتراضية إذا لم يكن هناك حركات محفوظة
-if #savedAnimations == 0 then
-    local defaultAnimations = {
-        {name = "Dance1", id = 656118852},
-        {name = "Dance2", id = 656119377},
-        {name = "Dance3", id = 656121766},
-        {name = "Flip", id = 656117878},
-        {name = "Jump", id = 656117400}
-    }
-    
-    for _, anim in ipairs(defaultAnimations) do
-        savedAnimations[anim.name] = {id = anim.id, frozen = false}
-        
-        local animationButton = Instance.new("TextButton")
-        animationButton.Size = UDim2.new(1, 0, 0, 30)
-        animationButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-        animationButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        animationButton.Text = anim.name .. " (" .. anim.id .. ")"
-        animationButton.Font = Enum.Font.Gotham
-        animationButton.TextSize = 14
-        animationButton.Parent = AnimationsList
-        
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(0, 6)
-        uiCorner.Parent = animationButton
-        
-        animationButton.MouseButton1Click:Connect(function()
-            AnimationIdInput.Text = anim.id
-        end)
-    end
-    
-    saveAnimations()
-end
-
---[[ ==================
-    تعديل: سحب سلس للقائمة مع Tween على الجوال والكمبيوتر
-================== ]]--
-local draggingList = false
-local dragInputList, dragStartList, startPosList
-local tweenTime = 0.15 -- سرعة الانسيابية
-
-local function updateInputList(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingList = true
-        dragStartList = input.Position
-        startPosList = AnimationsList.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingList = false
-            end
-        end)
-    end
-end
-
-AnimationsList.InputBegan:Connect(updateInputList)
-
-AnimationsList.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInputList = input
-    end
-end)
-
-UserInputService.InputChanged:
