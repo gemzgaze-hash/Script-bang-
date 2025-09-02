@@ -16,20 +16,19 @@ ScreenGui.Parent = player.PlayerGui
 ScreenGui.Enabled = true
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 500)
-MainFrame.Position = UDim2.new(0, 50, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 350, 0, 30) -- الحجم الابتدائي (مغلق)
+MainFrame.Position = UDim2.new(0, 50, 0.5, -15)
 MainFrame.AnchorPoint = Vector2.new(0, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
-Mainframe.Dragabble = true
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.Size = UDim2.new(1, 0, 1, 0)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 TitleBar.BorderSizePixel = 0
@@ -52,7 +51,7 @@ ToggleButton.Size = UDim2.new(0, 30, 0, 30)
 ToggleButton.Position = UDim2.new(1, -30, 0, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.Text = "_"
+ToggleButton.Text = "+"
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 16
 ToggleButton.Parent = TitleBar
@@ -62,9 +61,10 @@ UICornerToggle.CornerRadius = UDim.new(0, 6)
 UICornerToggle.Parent = ToggleButton
 
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -20, 1, -40)
+ContentFrame.Size = UDim2.new(1, -20, 0, 465)
 ContentFrame.Position = UDim2.new(0, 10, 0, 35)
 ContentFrame.BackgroundTransparency = 1
+ContentFrame.Visible = false -- مخفي في البداية
 ContentFrame.Parent = MainFrame
 
 -- قائمة الحركات
@@ -176,7 +176,6 @@ FrontBangButton.Position = UDim2.new(0, 0, 0, 0)
 FrontBangButton.BackgroundColor3 = Color3.fromRGB(180, 100, 60)
 FrontBangButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FrontBangButton.Text = "Front Bang"
-FrontBangButton.Font = Enum.Font.G
 FrontBangButton.Font = Enum.Font.Gotham
 FrontBangButton.TextSize = 14
 FrontBangButton.Parent = BangButtons
@@ -204,7 +203,7 @@ local savedAnimations = {}
 local isFrozen = false
 local bangSpeed = 50
 
--- جعل النافذة قابلة للسحب
+-- جعل النافذة قابلة للسحب (تعمل على الهاتف المحمول)
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -245,7 +244,7 @@ end)
 ToggleButton.MouseButton1Click:Connect(function()
     ContentFrame.Visible = not ContentFrame.Visible
     if ContentFrame.Visible then
-        ToggleButton.Text = "_"
+        ToggleButton.Text = "-"
         MainFrame.Size = UDim2.new(0, 350, 0, 500)
     else
         ToggleButton.Text = "+"
