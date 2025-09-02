@@ -341,14 +341,9 @@ end)
 -- وظيفة البانق الأمامي
 FrontBangButton.MouseButton1Click:Connect(function()
     if rootPart then
-        -- حفظ الموضع الحالي
         local originalPosition = rootPart.Position
-        
-        -- التحرك للأمام
         local frontPosition = originalPosition + rootPart.CFrame.LookVector * bangSpeed
         rootPart.CFrame = CFrame.new(frontPosition)
-        
-        -- العودة بعد فترة وجيزة
         delay(0.2, function()
             if rootPart then
                 rootPart.CFrame = CFrame.new(originalPosition)
@@ -360,14 +355,9 @@ end)
 -- وظيفة البانق الخلفي
 BackBangButton.MouseButton1Click:Connect(function()
     if rootPart then
-        -- حفظ الموضع الحالي
         local originalPosition = rootPart.Position
-        
-        -- التحرك للخلف
         local backPosition = originalPosition - rootPart.CFrame.LookVector * bangSpeed
         rootPart.CFrame = CFrame.new(backPosition)
-        
-        -- العودة بعد فترة وجيزة
         delay(0.2, function()
             if rootPart then
                 rootPart.CFrame = CFrame.new(originalPosition)
@@ -412,3 +402,34 @@ if #savedAnimations == 0 then
     
     saveAnimations()
 end
+
+--[[ ==================
+    تعديل: سحب سلس للقائمة مع Tween على الجوال والكمبيوتر
+================== ]]--
+local draggingList = false
+local dragInputList, dragStartList, startPosList
+local tweenTime = 0.15 -- سرعة الانسيابية
+
+local function updateInputList(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingList = true
+        dragStartList = input.Position
+        startPosList = AnimationsList.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingList = false
+            end
+        end)
+    end
+end
+
+AnimationsList.InputBegan:Connect(updateInputList)
+
+AnimationsList.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputList = input
+    end
+end)
+
+UserInputService.InputChanged:
