@@ -22,6 +22,7 @@ MainFrame.AnchorPoint = Vector2.new(0, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
+Mainframe.Dragabble = true
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 12)
