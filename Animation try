@@ -4,80 +4,238 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
+local animator = humanoid:WaitForChild("Animator")
 
--- الملفات والجداول
-local saveFile = "رقصاتي.json"
-local remoteURL = "https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/%D8%A7%D9%84%D8%B1%D9%82%D8%B5%D8%A7%D8%AA.json"
-local remoteDances = {}  -- من الموقع
-local localDances = {}   -- من جهاز اللاعب
-local dances = {}        -- القائمة النهائية
+-- ===== إعدادات عامة =====
+local DEBUG = false
+local function log(...) if DEBUG then print("[DanceGUI]", ...) end end
 
--- تحميل من الموقع
-pcall(function()
-    local data = HttpService:JSONDecode(game:HttpGet(remoteURL))
-    if type(data) == "table" then
-        remoteDances = data
-    end
-end)
+-- الروابط/الملفات
+local remoteURL = "https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/%D8%A7%D9%84%D8%B1%D9%82%D8%B5%D8%A7%D8%AA" -- <- عدل هنا إذا احتجت
+local saveFile = "رقصاتي.json"           -- حفظ الرقصات المحلية (لا يؤثر على الموقع)
+local blockedFile = "رقصاتي.blocked.json" -- قائمة المحظورات المحليّة (لإخفاء رقصات الموقع عندك فقط)
 
--- تحميل من الملف المحلي
-if pcall(function() return readfile end) and isfile and isfile(saveFile) then
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(readfile(saveFile))
-    end)
+-- جداول البيانات
+local remoteDances = {}   -- من الموقع
+local localDances  = {}   -- من جهاز اللاعب
+local blockedSet   = {}   -- AnimationId (رقم فقط) محظور
+
+-- ===== أدوات ملفات محلية آمنة =====
+local function safeIsFile(path)
+    local ok = pcall(function() return isfile ~= nil end)
+    if not ok or not isfile then return false end
+    local ok2, exists = pcall(function() return isfile(path) end)
+    return ok2 and exists
+end
+
+local function safeWrite(path, text)
+    local ok = pcall(function() return writefile ~= nil end)
+    if not ok or not writefile then return false end
+    return pcall(function() writefile(path, text) end)
+end
+
+local function safeRead(path)
+    if not safeIsFile(path) then return nil end
+    local ok, res = pcall(function() return readfile(path) end)
+    if ok then return res end
+    return nil
+end
+
+-- ===== تحميل من الموقع =====
+local function parseRemoteAsJson(body)
+    local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
     if ok and type(data) == "table" then
-        localDances = data
+        -- توقّع: [{Name=..., AnimationId="rbxassetid://123", FreezeTime=0}, ...] أو { ... IsGroup=true ... }
+        return data
     end
+    return nil
 end
 
--- دمج بدون تكرار (حسب AnimationId)
-local idsSeen = {}
-for _, item in ipairs(remoteDances) do
-    if not idsSeen[item.AnimationId] then
-        table.insert(dances, item)
-        idsSeen[item.AnimationId] = true
+local function parseRemoteAsLines(body)
+    -- fallback: كل سطر يحتوي رقم الأنيميشن وربما اسم
+    local items = {}
+    for line in string.gmatch(body or "", "[^\r\n]+") do
+        local idnum = tostring(line):match("%d+")
+        if idnum then
+            local rest = tostring(line):gsub("%d+", ""):gsub("[%|%-_:]+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+            local name = (rest ~= "" and rest) or ("رقصة موقع " .. (#items + 1))
+            table.insert(items, {
+                Name = name,
+                AnimationId = "rbxassetid://" .. idnum,
+                FreezeTime = 0
+            })
+        end
     end
-end
-for _, item in ipairs(localDances) do
-    if not idsSeen[item.AnimationId] then
-        table.insert(dances, item)
-        idsSeen[item.AnimationId] = true
-    end
-end
-
--- حفظ المحلي فقط
-local function saveToFile()
-    if pcall(function() return writefile end) then
-        pcall(function()
-            writefile(saveFile, HttpService:JSONEncode(localDances))
-        end)
-    end
+    return items
 end
 
--- إنشاء الواجهة الرسومية
+local function loadRemote()
+    local ok, body = pcall(function() return game:HttpGet(remoteURL) end)
+    if not ok or not body or #body == 0 then
+        log("فشل تحميل الموقع")
+        return {}
+    end
+    local asJson = parseRemoteAsJson(body)
+    if asJson then return asJson end
+    return parseRemoteAsLines(body) or {}
+end
+
+-- ===== تحميل/حفظ محلي =====
+local function loadLocalDances()
+    local txt = safeRead(saveFile)
+    if not txt then return {} end
+    local ok, data = pcall(function() return HttpService:JSONDecode(txt) end)
+    if ok and type(data) == "table" then return data end
+    return {}
+end
+
+local function saveLocalDances()
+    safeWrite(saveFile, HttpService:JSONEncode(localDances))
+end
+
+local function loadBlocked()
+    local txt = safeRead(blockedFile)
+    if not txt then return {} end
+    local ok, data = pcall(function() return HttpService:JSONDecode(txt) end)
+    local set = {}
+    if ok and type(data) == "table" then
+        -- يدعم صيغة { "12345", ... } أو { ["12345"]=true, ... }
+        local isArray = (#data > 0)
+        if isArray then
+            for _, v in ipairs(data) do
+                local idnum = tostring(v):match("%d+")
+                if idnum then set[idnum] = true end
+            end
+        else
+            for k, v in pairs(data) do
+                if v then set[tostring(k)] = true end
+            end
+        end
+    end
+    return set
+end
+
+local function saveBlocked()
+    -- خزّن كقاموس { ["123"]=true, ... } لتسريع القراءة
+    safeWrite(blockedFile, HttpService:JSONEncode(blockedSet))
+end
+
+-- ===== بناء القائمة الموحّدة مع منع التكرار =====
+local function idToNumberStr(animId)
+    -- animId قد يكون "rbxassetid://123" أو رقم فقط
+    if not animId then return nil end
+    local s = tostring(animId)
+    local num = s:match("(%d+)")
+    return num
+end
+
+local function clone(tbl)
+    local t = {}
+    for k,v in pairs(tbl) do
+        if type(v) == "table" then
+            t[k] = clone(v)
+        else
+            t[k] = v
+        end
+    end
+    return t
+end
+
+-- نستخدم حقول إضافية: Source = "remote"/"local"
+local function buildMergedList()
+    local merged = {}
+    local seen = {} -- dedup على مستوى AnimationId للأفراد، وللمجموعات بمفتاح خاص
+
+    -- أضف عناصر الموقع أولاً (مع تصفية المحظور)
+    for _, item in ipairs(remoteDances) do
+        if item.IsGroup then
+            -- مفتاح مجموعة: GROUP:<id1>-<id2>-...
+            local key = "GROUP:"
+            if type(item.Animations) == "table" then
+                local nums = {}
+                for _, a in ipairs(item.Animations) do
+                    table.insert(nums, idToNumberStr(a.ID or a.AnimationId or ""))
+                end
+                key = key .. table.concat(nums, "-")
+            end
+            if not seen[key] then
+                local c = clone(item)
+                c.Source = "remote"
+                table.insert(merged, c)
+                seen[key] = true
+            end
+        else
+            local num = idToNumberStr(item.AnimationId)
+            if num and not blockedSet[num] and not seen[num] then
+                local c = clone(item)
+                c.Source = "remote"
+                table.insert(merged, c)
+                seen[num] = true
+            end
+        end
+    end
+
+    -- ثم أضف المحلي (يطغى على الموقع إن تشابه الـID)
+    for _, item in ipairs(localDances) do
+        if item.IsGroup then
+            local key = "GROUP:"
+            if type(item.Animations) == "table" then
+                local nums = {}
+                for _, a in ipairs(item.Animations) do
+                    table.insert(nums, idToNumberStr(a.ID or a.AnimationId or ""))
+                end
+                key = key .. table.concat(nums, "-")
+            end
+            if not seen[key] then
+                local c = clone(item)
+                c.Source = "local"
+                table.insert(merged, c)
+                seen[key] = true
+            end
+        else
+            local num = idToNumberStr(item.AnimationId)
+            if num and not seen[num] then
+                local c = clone(item)
+                c.Source = "local"
+                table.insert(merged, c)
+                seen[num] = true
+            end
+        end
+    end
+
+    return merged
+end
+
+-- تحميل أولي
+remoteDances = loadRemote()
+localDances  = loadLocalDances()
+blockedSet   = loadBlocked()
+
+-- ====== GUI ======
 local function createGUI()
     -- GUI في PlayerGui
     local gui = Instance.new("ScreenGui")
     gui.Name = "DanceGUI"
+    gui.ResetOnSpawn = false
     gui.Parent = player:WaitForChild("PlayerGui")
 
-    -- إطار رئيسي (تم زيادة العرض لاستيعاب الأزرار)
+    -- إطار رئيسي
     local main = Instance.new("Frame", gui)
     main.Position = UDim2.new(0, 10, 0, 50)
-    main.Size = UDim2.new(0, 370, 0, 400)  -- من 320 إلى 350
-    main.Visible = true 
+    main.Size = UDim2.new(0, 370, 0, 400)
+    main.Visible = true
     main.BackgroundColor3 = Color3.fromRGB(30,30,30)
     main.Active = true
-    main.Draggable = true
+    -- Draggable قد يكون مُهمل ببعض الإصدارات؛ نفعّل سحب يدوي بسيط
+    pcall(function() main.Draggable = true end)
 
-    -- زر فتح/إغلاق القائمة
+    -- زر فتح/إغلاق
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0, 100, 0, 30)
+    openBtn.Size = UDim2.new(0, 120, 0, 30)
     openBtn.Position = UDim2.new(0, 10, 0, 10)
     openBtn.Text = "😈 فتح القائمة"
     openBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
     openBtn.TextColor3 = Color3.new(1,1,1)
-
     openBtn.MouseButton1Click:Connect(function()
         main.Visible = not main.Visible
     end)
@@ -95,7 +253,7 @@ local function createGUI()
     layout.Padding = UDim.new(0, 5)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    -- TextBox لتشغيل ID
+    -- عناصر أعلى الواجهة
     local idBox = Instance.new("TextBox", main)
     idBox.Position = UDim2.new(0, 10, 0, 10)
     idBox.Size = UDim2.new(0, 150, 0, 30)
@@ -110,7 +268,6 @@ local function createGUI()
     playBtn.BackgroundColor3 = Color3.fromRGB(60,100,60)
     playBtn.TextColor3 = Color3.new(1,1,1)
 
-
     local stopAllBtn = Instance.new("TextButton", main)
     stopAllBtn.Position = UDim2.new(0, 240, 0, 10)
     stopAllBtn.Size = UDim2.new(0, 70, 0, 30)
@@ -118,7 +275,6 @@ local function createGUI()
     stopAllBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
     stopAllBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- زر تشغيل السكربت (بدلاً من زر نسخ الأيدي القديم)
     local executeBtn = Instance.new("TextButton", main)
     executeBtn.Position = UDim2.new(0, 320, 0, 10)
     executeBtn.Size = UDim2.new(0, 20, 0, 30)
@@ -126,7 +282,6 @@ local function createGUI()
     executeBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 160)
     executeBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- Box للسرعة وزر تطبيق
     local speedBox = Instance.new("TextBox", main)
     speedBox.Position = UDim2.new(0, 10, 0, 45)
     speedBox.Size = UDim2.new(0, 150, 0, 30)
@@ -141,7 +296,6 @@ local function createGUI()
     applySpeedBtn.BackgroundColor3 = Color3.fromRGB(60,100,100)
     applySpeedBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- زر نسخ الأيدي (الزر القديم)
     local copyIdBtn = Instance.new("TextButton", main)
     copyIdBtn.Position = UDim2.new(0, 240, 0, 45)
     copyIdBtn.Size = UDim2.new(0, 70, 0, 30)
@@ -149,7 +303,6 @@ local function createGUI()
     copyIdBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
     copyIdBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- أزرار تجميد
     local freezeBtn = Instance.new("TextButton", main)
     freezeBtn.Position = UDim2.new(0, 10, 0, 80)
     freezeBtn.Size = UDim2.new(0, 140, 0, 30)
@@ -185,7 +338,7 @@ local function createGUI()
     saveGroupBtn.BackgroundColor3 = Color3.fromRGB(100,70,30)
     saveGroupBtn.TextColor3 = Color3.new(1,1,1)
 
-    -- Scroll Buttons
+    -- أزرار Scroll
     local scrollDown = Instance.new("TextButton", main)
     scrollDown.Size = UDim2.new(0, 30, 0, 30)
     scrollDown.Position = UDim2.new(1, -35, 1, -35)
@@ -215,56 +368,59 @@ local function createGUI()
             task.wait()
         end
     end
-
     scrollDown.MouseButton1Down:Connect(function() startScroll(1) end)
     scrollDown.MouseButton1Up:Connect(function() scrollingFlag = false end)
     scrollUp.MouseButton1Down:Connect(function() startScroll(-1) end)
     scrollUp.MouseButton1Up:Connect(function() scrollingFlag = false end)
 
-    -- وظيفة تشغيل السكربت
+    -- تشغيل سكربت خارجي
     executeBtn.MouseButton1Click:Connect(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
+        end)
     end)
 
-
--- نسخ الـ ID
-local animator = humanoid:WaitForChild("Animator")
-animator.AnimationPlayed:Connect(function(track)
-    if track and track.Animation and track.Animation.AnimationId then
-        local id = string.match(track.Animation.AnimationId, "%d+")
-        if id then
-            currentAnimId = id
-            animBtn.Text = id
+    -- التقاط الـID من أي أنيميشن يشتغل
+    animator.AnimationPlayed:Connect(function(track)
+        if track and track.Animation and track.Animation.AnimationId then
+            local id = string.match(track.Animation.AnimationId, "%d+")
+            if id then
+                currentAnimId = "rbxassetid://"..id
+                animBtn.Text = id
+            end
         end
-    end
-end)
+    end)
 
-animBtn.MouseButton1Click:Connect(function()
-    if currentAnimId then
-        if setclipboard then
-            setclipboard(currentAnimId)
+    animBtn.MouseButton1Click:Connect(function()
+        if currentAnimId and setclipboard then
+            setclipboard(tostring(currentAnimId):match("%d+") or currentAnimId)
             print("تم نسخ Animation ID:", currentAnimId)
         end
-    end
-end)
+    end)
 
+    copyIdBtn.MouseButton1Click:Connect(function()
+        if currentAnimId and setclipboard then
+            setclipboard(tostring(currentAnimId):match("%d+") or currentAnimId)
+            print("تم نسخ Animation ID:", currentAnimId)
+        end
+    end)
 
-    -- وظائف تشغيل/إيقاف/تجميد/حفظ الأنيميشينات
+    -- تشغيل/إيقاف/تجميد/سرعة
     playBtn.MouseButton1Click:Connect(function()
-        local animId = "rbxassetid://" .. idBox.Text
+        local idText = idBox.Text
+        local num = tostring(idText):match("%d+")
+        if not num then return end
         local anim = Instance.new("Animation")
-        anim.AnimationId = animId
-        local track = humanoid:LoadAnimation(anim)
+        anim.AnimationId = "rbxassetid://" .. num
+        local track = animator:LoadAnimation(anim)
         track:Play()
         table.insert(activeTracks, track)
         currentTrack = track
-        currentAnimId = animId
+        currentAnimId = anim.AnimationId
     end)
 
     stopAllBtn.MouseButton1Click:Connect(function()
-        for _, track in ipairs(activeTracks) do
-            track:Stop()
-        end
+        for _, track in ipairs(activeTracks) do pcall(function() track:Stop() end) end
         activeTracks = {}
         currentTrack = nil
     end)
@@ -278,16 +434,12 @@ end)
 
     freezeBtn.MouseButton1Click:Connect(function()
         for _, track in ipairs(activeTracks) do
-            if track.IsPlaying then
-                track:AdjustSpeed(0)
-            end
+            if track.IsPlaying then track:AdjustSpeed(0) end
         end
     end)
 
     freezeSingleBtn.MouseButton1Click:Connect(function()
-        if currentTrack and currentTrack.IsPlaying then
-            currentTrack:AdjustSpeed(0)
-        end
+        if currentTrack and currentTrack.IsPlaying then currentTrack:AdjustSpeed(0) end
     end)
 
     animBtn.MouseButton1Click:Connect(function()
@@ -302,45 +454,15 @@ end)
         end
     end)
 
-    saveBtn.MouseButton1Click:Connect(function()
-        if currentAnimId then
-            local name = "رقصة " .. #dances + 1
-            table.insert(dances, {
-                Name = name,
-                AnimationId = currentAnimId,
-                FreezeTime = currentTrack and currentTrack.TimePosition or 0
-            })
-            saveToFile()
-            refreshList()
-        end
-    end)
-
-    saveGroupBtn.MouseButton1Click:Connect(function()
-        if #activeTracks > 0 then
-            local groupAnimations = {}
-            for _, track in ipairs(activeTracks) do
-                table.insert(groupAnimations, {
-                    ID = track.Animation.AnimationId,
-                    FreezeTime = track.TimePosition
-                })
-            end
-            
-            table.insert(dances, {
-                Name = "مجموعة رقصات " .. #dances + 1,
-                IsGroup = true,
-                Animations = groupAnimations
-            })
-            saveToFile()
-            refreshList()
-        end
-    end)
-
-    -- وظيفة تحديث القائمة
-    function refreshList()
+    -- === تحديث القائمة ===
+    local function refreshList()
+        -- امسح العناصر
         for _, child in ipairs(scrolling:GetChildren()) do
             if child:IsA("Frame") then child:Destroy() end
         end
-        
+
+        local dances = buildMergedList()
+
         for i, item in ipairs(dances) do
             local frame = Instance.new("Frame", scrolling)
             frame.Size = UDim2.new(1, -10, 0, 40)
@@ -349,43 +471,44 @@ end)
             local nameBtn = Instance.new("TextButton", frame)
             nameBtn.Size = UDim2.new(0.5, -5, 1, 0)
             nameBtn.Position = UDim2.new(0, 5, 0, 0)
-            nameBtn.Text = item.Name
+            nameBtn.Text = (item.Name or ("رقصة "..i)) .. (item.Source=="remote" and "  🌐" or "")
             nameBtn.TextColor3 = Color3.new(1,1,1)
             nameBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
 
             nameBtn.MouseButton1Click:Connect(function()
-                for _, track in ipairs(activeTracks) do
-                    track:Stop()
-                end
+                -- أوقف الحالي
+                for _, t in ipairs(activeTracks) do pcall(function() t:Stop() end) end
                 activeTracks = {}
-                
+
                 if item.IsGroup then
-                    for _, animData in ipairs(item.Animations) do
-                        local anim = Instance.new("Animation")
-                        anim.AnimationId = animData.ID
-                        local track = humanoid:LoadAnimation(anim)
-                        track:Play()
-                        track.TimePosition = animData.FreezeTime
-                        track:AdjustSpeed(0)
-                        table.insert(activeTracks, track)
+                    for _, animData in ipairs(item.Animations or {}) do
+                        local id = (animData.ID or animData.AnimationId or "")
+                        local num = idToNumberStr(id)
+                        if num then
+                            local anim = Instance.new("Animation")
+                            anim.AnimationId = "rbxassetid://"..num
+                            local track = animator:LoadAnimation(anim)
+                            track:Play()
+                            track.TimePosition = tonumber(animData.FreezeTime) or 0
+                            track:AdjustSpeed(0)
+                            table.insert(activeTracks, track)
+                        end
                     end
                 else
-                    local anim = Instance.new("Animation")
-                    anim.AnimationId = item.AnimationId
-                    local track = humanoid:LoadAnimation(anim)
-                    track:Play()
-                    if item.FreezeTime then 
-                        track.TimePosition = item.FreezeTime 
-                        track:AdjustSpeed(0) 
-                    end
-                    table.insert(activeTracks, track)
-                    currentTrack = track
-                    currentAnimId = item.AnimationId
-                    
-                    -- تحديث صندوق النص بـ ID الرقصة
-                    local idNumber = string.match(item.AnimationId, "%d+")
-                    if idNumber then
-                        idBox.Text = idNumber
+                    local num = idToNumberStr(item.AnimationId)
+                    if num then
+                        local anim = Instance.new("Animation")
+                        anim.AnimationId = "rbxassetid://"..num
+                        local track = animator:LoadAnimation(anim)
+                        track:Play()
+                        if item.FreezeTime then
+                            track.TimePosition = tonumber(item.FreezeTime) or 0
+                            track:AdjustSpeed(0)
+                        end
+                        table.insert(activeTracks, track)
+                        currentTrack = track
+                        currentAnimId = "rbxassetid://"..num
+                        idBox.Text = num
                     end
                 end
             end)
@@ -396,78 +519,84 @@ end)
             renameBtn.Text = "✏️"
             renameBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
             renameBtn.TextColor3 = Color3.new(1,1,1)
-            
-            -- وظيفة تعديل الاسم بإدخال من الكيبورد
-renameBtn.MouseButton1Click:Connect(function()
-    -- إنشاء نافذة إدخال النص
-    local inputGui = Instance.new("ScreenGui", player.PlayerGui)
-    inputGui.Name = "RenameInputGui"
-    
-    local background = Instance.new("Frame", inputGui)
-    background.Size = UDim2.new(0, 300, 0, 150)
-    background.Position = UDim2.new(0.5, -150, 0.5, -75)
-    background.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    background.BorderSizePixel = 2
-    background.BorderColor3 = Color3.fromRGB(80, 80, 80)
-    
-    local title = Instance.new("TextLabel", background)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0, 10)
-    title.Text = "أدخل الاسم الجديد:"
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.BackgroundTransparency = 1
-    
-    local inputBox = Instance.new("TextBox", background)
-    inputBox.Size = UDim2.new(0, 260, 0, 30)
-    inputBox.Position = UDim2.new(0.5, -130, 0, 50)
-    inputBox.PlaceholderText = "اكتب الاسم الجديد هنا"
-    inputBox.Text = item.Name
-    inputBox.TextColor3 = Color3.new(1, 1, 1)
-    inputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    inputBox.ClearTextOnFocus = false
-    
-    local confirmBtn = Instance.new("TextButton", background)
-    confirmBtn.Size = UDim2.new(0, 100, 0, 30)
-    confirmBtn.Position = UDim2.new(0.5, -110, 0, 100)
-    confirmBtn.Text = "تأكيد"
-    confirmBtn.TextColor3 = Color3.new(1, 1, 1)
-    confirmBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
-    
-    local cancelBtn = Instance.new("TextButton", background)
-    cancelBtn.Size = UDim2.new(0, 100, 0, 30)
-    cancelBtn.Position = UDim2.new(0.5, 10, 0, 100)
-    cancelBtn.Text = "إلغاء"
-    cancelBtn.TextColor3 = Color3.new(1, 1, 1)
-    cancelBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
-    
-    -- التركيز على مربع النص تلقائياً
-    inputBox:CaptureFocus()
-    
-    -- وظيفة التأكيد
-    confirmBtn.MouseButton1Click:Connect(function()
-        if inputBox.Text ~= "" then
-            item.Name = inputBox.Text
-            nameBtn.Text = inputBox.Text
-            saveToFile()
-        end
-        inputGui:Destroy()
-    end)
-    
-    -- وظيفة الإلغاء
-    cancelBtn.MouseButton1Click:Connect(function()
-        inputGui:Destroy()
-    end)
-    
-    -- إغلاق عند الضغط على زر الإدخال (Enter)
-    inputBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed and inputBox.Text ~= "" then
-            item.Name = inputBox.Text
-            nameBtn.Text = inputBox.Text
-            saveToFile()
-            inputGui:Destroy()
-        end
-    end)
-end)
+
+            renameBtn.MouseButton1Click:Connect(function()
+                if item.Source == "remote" then
+                    -- ننسخها كمحلية ثم نعيد بناء القائمة
+                    local copy = clone(item)
+                    copy.Source = "local"
+                    -- تأكد من صيغة الفردي/المجموعة
+                    table.insert(localDances, copy)
+                    saveLocalDances()
+                    refreshList()
+                    return
+                end
+
+                local inputGui = Instance.new("ScreenGui", player.PlayerGui)
+                inputGui.Name = "RenameInputGui"
+
+                local background = Instance.new("Frame", inputGui)
+                background.Size = UDim2.new(0, 300, 0, 150)
+                background.Position = UDim2.new(0.5, -150, 0.5, -75)
+                background.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                background.BorderSizePixel = 2
+                background.BorderColor3 = Color3.fromRGB(80, 80, 80)
+
+                local title = Instance.new("TextLabel", background)
+                title.Size = UDim2.new(1, 0, 0, 30)
+                title.Position = UDim2.new(0, 0, 0, 10)
+                title.Text = "أدخل الاسم الجديد:"
+                title.TextColor3 = Color3.new(1, 1, 1)
+                title.BackgroundTransparency = 1
+
+                local inputBox = Instance.new("TextBox", background)
+                inputBox.Size = UDim2.new(0, 260, 0, 30)
+                inputBox.Position = UDim2.new(0.5, -130, 0, 50)
+                inputBox.PlaceholderText = "اكتب الاسم الجديد هنا"
+                inputBox.Text = item.Name or ("رقصة")
+                inputBox.TextColor3 = Color3.new(1, 1, 1)
+                inputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                inputBox.ClearTextOnFocus = false
+
+                local confirmBtn = Instance.new("TextButton", background)
+                confirmBtn.Size = UDim2.new(0, 100, 0, 30)
+                confirmBtn.Position = UDim2.new(0.5, -110, 0, 100)
+                confirmBtn.Text = "تأكيد"
+                confirmBtn.TextColor3 = Color3.new(1, 1, 1)
+                confirmBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+
+                local cancelBtn = Instance.new("TextButton", background)
+                cancelBtn.Size = UDim2.new(0, 100, 0, 30)
+                cancelBtn.Position = UDim2.new(0.5, 10, 0, 100)
+                cancelBtn.Text = "إلغاء"
+                cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+                cancelBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+
+                inputBox:CaptureFocus()
+
+                local function doRename()
+                    if inputBox.Text ~= "" then
+                        item.Name = inputBox.Text
+                        -- عدّل في localDances
+                        for idx, it in ipairs(localDances) do
+                            local match = (it.IsGroup and item.IsGroup) or (idToNumberStr(it.AnimationId) == idToNumberStr(item.AnimationId))
+                            if match then
+                                localDances[idx] = item
+                                break
+                            end
+                        end
+                        saveLocalDances()
+                        inputGui:Destroy()
+                        refreshList()
+                    else
+                        inputGui:Destroy()
+                    end
+                end
+
+                confirmBtn.MouseButton1Click:Connect(doRename)
+                cancelBtn.MouseButton1Click:Connect(function() inputGui:Destroy() end)
+                inputBox.FocusLost:Connect(function(enterPressed) if enterPressed then doRename() end end)
+            end)
 
             local deleteBtn = Instance.new("TextButton", frame)
             deleteBtn.Size = UDim2.new(0.2, -5, 1, 0)
@@ -475,24 +604,95 @@ end)
             deleteBtn.Text = "🗑️"
             deleteBtn.BackgroundColor3 = Color3.fromRGB(100,70,70)
             deleteBtn.TextColor3 = Color3.new(1,1,1)
-            
+
             deleteBtn.MouseButton1Click:Connect(function()
-                table.remove(dances, i)
-                saveToFile()
+                if item.Source == "remote" and not item.IsGroup then
+                    local num = idToNumberStr(item.AnimationId)
+                    if num then
+                        blockedSet[num] = true
+                        saveBlocked()
+                    end
+                else
+                    -- احذف من المحلي
+                    local newLocal = {}
+                    if item.IsGroup then
+                        -- قارن بالمحتوى
+                        for _, it in ipairs(localDances) do
+                            if not it.IsGroup then
+                                table.insert(newLocal, it)
+                            else
+                                -- قارن أطوال وقيم الأنيميشن
+                                local same = false
+                                if type(it.Animations)=="table" and type(item.Animations)=="table" and #it.Animations == #item.Animations then
+                                    same = true
+                                    for k=1,#it.Animations do
+                                        local ida = idToNumberStr(it.Animations[k].ID or it.Animations[k].AnimationId)
+                                        local idb = idToNumberStr(item.Animations[k].ID or item.Animations[k].AnimationId)
+                                        if ida ~= idb then same = false break end
+                                    end
+                                end
+                                if not same then table.insert(newLocal, it) end
+                            end
+                        end
+                    else
+                        local targetNum = idToNumberStr(item.AnimationId)
+                        for _, it in ipairs(localDances) do
+                            local num = idToNumberStr(it.AnimationId)
+                            if not (num == targetNum and not it.IsGroup) then
+                                table.insert(newLocal, it)
+                            end
+                        end
+                    end
+                    localDances = newLocal
+                    saveLocalDances()
+                end
                 refreshList()
             end)
         end
     end
 
+    -- أزرار الحفظ
+    saveBtn.MouseButton1Click:Connect(function()
+        if not currentAnimId then return end
+        local entry = {
+            Name = "رقصة " .. tostring(#localDances + 1),
+            AnimationId = currentAnimId,
+            FreezeTime = currentTrack and currentTrack.TimePosition or 0
+        }
+        table.insert(localDances, entry)
+        saveLocalDances()
+        refreshList()
+    end)
+
+    saveGroupBtn.MouseButton1Click:Connect(function()
+        if #activeTracks > 0 then
+            local groupAnimations = {}
+            for _, track in ipairs(activeTracks) do
+                local idNum = idToNumberStr(track.Animation and track.Animation.AnimationId or "")
+                if idNum then
+                    table.insert(groupAnimations, {
+                        ID = "rbxassetid://"..idNum,
+                        FreezeTime = track.TimePosition or 0
+                    })
+                end
+            end
+            table.insert(localDances, {
+                Name = "مجموعة رقصات " .. tostring(#localDances + 1),
+                IsGroup = true,
+                Animations = groupAnimations
+            })
+            saveLocalDances()
+            refreshList()
+        end
+    end)
+
     -- تهيئة الواجهة
     refreshList()
-    
     return main
 end
 
--- إنشاء الواجهة بعد تحميل اللاعب
+-- إنشاء الواجهة بعد التحميل
 local mainFrame = createGUI()
 
--- إظهار رسالة تأكيد
 print("تم تحميل واجهة تحكم الرقصات بنجاح!")
 print("اضغط على زر 'فتح القائمة' في الزاوية اليسرى العليا لفتح القائمة")
