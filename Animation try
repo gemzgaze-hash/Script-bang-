@@ -7,7 +7,7 @@ local humanoid = character:WaitForChild("Humanoid")
 
 -- الملفات والجداول
 local saveFile = "رقصاتي.json"
-local remoteURL = "https://raw.githubusercontent.com/username/repo/main/dances.json"
+local remoteURL = "https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/%D8%A7%D9%84%D8%B1%D9%82%D8%B5%D8%A7%D8%AA.json"
 local remoteDances = {}  -- من الموقع
 local localDances = {}   -- من جهاز اللاعب
 local dances = {}        -- القائمة النهائية
