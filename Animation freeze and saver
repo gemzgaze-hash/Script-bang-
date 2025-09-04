@@ -198,9 +198,8 @@ local function createGUI()
 
     -- وظيفة تشغيل السكربت
     executeBtn.MouseButton1Click:Connect(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/Bang%20script", true))()
     end)
-
 
 -- نسخ الـ ID
 local animator = humanoid:WaitForChild("Animator")
