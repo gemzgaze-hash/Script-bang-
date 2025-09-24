@@ -275,9 +275,14 @@ local function createGUI()
     end)
 
     applySpeedBtn.MouseButton1Click:Connect(function()
-        local speed = tonumber(speedBox.Text) or 1
-        if currentTrack then currentTrack:AdjustSpeed(speed) end
-    end)
+    local speed = tonumber(speedBox.Text) or 1
+    -- يغير السرعة لكل الأنميشنات الموجودة حاليًا في activeTracks
+    for _, track in ipairs(activeTracks) do
+        if track then
+            track:AdjustSpeed(speed) -- حتى لو كان مجمد (Speed = 0)
+        end
+    end
+end)
 
     freezeBtn.MouseButton1Click:Connect(function()
         for _, track in ipairs(activeTracks) do if track.IsPlaying then track:AdjustSpeed(0) end end
@@ -418,12 +423,22 @@ end)
     end
 
     saveBtn.MouseButton1Click:Connect(function()
-        if currentAnimId then
-            table.insert(dances, {Name = "رقصة " .. #dances + 1, AnimationId = currentAnimId, FreezeTime = currentTrack and currentTrack.TimePosition or 0})
-            saveToFile()
-            refreshList()
-        end
-    end)
+    if currentTrack then
+        local name = "رقصة " .. #dances + 1
+        table.insert(dances, {
+            Name = name,
+            IsGroup = true,  -- نحتفظ بنفس شكل حفظ المجموعة
+            Animations = {
+                {
+                    ID = currentTrack.Animation.AnimationId,
+                    FreezeTime = currentTrack.TimePosition
+                }
+            }
+        })
+        saveToFile()
+        refreshList()
+    end
+end)
 
     saveGroupBtn.MouseButton1Click:Connect(function()
         if #activeTracks > 0 then
