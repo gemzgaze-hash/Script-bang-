@@ -1,1 +1,58 @@
 
+-- خدمات
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- الإطار
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 100)
+frame.Position = UDim2.new(0.5, -150, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+-- عنوان
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "📜 تغيير SignWords"
+title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = frame
+
+-- TextBox
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(1, -20, 0, 40)
+textBox.Position = UDim2.new(0, 10, 0, 40)
+textBox.PlaceholderText = "اكتب هنا..."
+textBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.ClearTextOnFocus = true
+textBox.Font = Enum.Font.SourceSans
+textBox.TextSize = 16
+textBox.Parent = frame
+
+-- إرسال عند كبس Enter
+textBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local msg = textBox.Text
+        if msg ~= "" then
+            local args = {
+                [1] = "Sign",
+                [2] = "SignWords",
+                [3] = msg
+            }
+            local char = player.Character
+            if char and char:FindFirstChild("Sign") and char.Sign:FindFirstChild("ToolSound") then
+                char.Sign.ToolSound:FireServer(unpack(args))
+            end
+            textBox.Text = "" -- يمسح بعد الإرسال
+        end
+    end
+end)
