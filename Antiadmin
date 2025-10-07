@@ -1,0 +1,6 @@
+local args = {
+    [1] = "wear",
+    [2] = game:GetService("Players").LocalPlayer:WaitForChild("")
+}
+
+game:GetService("ReplicatedStorage"):WaitForChild("AvatarEditor"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
