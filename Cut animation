@@ -1,0 +1,508 @@
+-- Emote GUI (مصحّح ليبقى ظاهر بعد الموت وتبقى الأزرار شغالة)
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local jsonFile = "emotes_data.json"
+local emotes = {}
+local animTracks = {}
+local currentAnimId = nil
+
+local currentCharacter = nil
+local currentHumanoid = nil
+local currentAnimator = nil
+local animPlayedConn = nil -- لحفظ وربط / قطع اتصال AnimationPlayed
+
+local currentSearchFilter = "" -- فلتر البحث الجديد
+
+-- تحميل/حفظ (يتحقق من وجود دوال الـexecutor)
+local function loadEmotes()
+    if type(isfile) == "function" and isfile(jsonFile) then
+        local ok, data = pcall(function() return HttpService:JSONDecode(readfile(jsonFile)) end)
+        if ok and type(data) == "table" then
+            emotes = data
+        else
+            emotes = {}
+        end
+    else
+        emotes = {}
+    end
+end
+
+local function saveEmotes()
+    if type(writefile) == "function" then
+        pcall(function()
+            writefile(jsonFile, HttpService:JSONEncode(emotes))
+        end)
+    end
+end
+
+-- لو فيه GUI قديم نحيه (لتفادي تكرار)
+local existing = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("EmoteGui")
+if existing then
+    existing:Destroy()
+end
+
+-- ============ إنشاء الـGUI ============
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EmoteGui"
+screenGui.ResetOnSpawn = false -- أهم سطر: يثبّت الواجهة بعد الموت
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0,500,0,400)
+mainFrame.Position = UDim2.new(0.5,-250,0.5,-200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.Visible = true
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0,120,0,40)
+toggleButton.Position = UDim2.new(0,20,0,200)
+toggleButton.Text = "Open Menu"
+toggleButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+
+-- مربعات الإدخال (نفس ترتيبك)
+local idBox = Instance.new("TextBox", mainFrame)
+idBox.Name = "IdBox"
+idBox.Size = UDim2.new(0,150,0,30)
+idBox.Position = UDim2.new(0,10,0,10)
+idBox.PlaceholderText = "Animation ID"
+idBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+idBox.TextColor3 = Color3.new(1,1,1)
+
+local sliceBox = Instance.new("TextBox", mainFrame)
+sliceBox.Name = "SliceBox"
+sliceBox.Size = UDim2.new(0,100,0,30)
+sliceBox.Position = UDim2.new(0,170,0,10)
+sliceBox.PlaceholderText = "Slice (sec)"
+sliceBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+sliceBox.TextColor3 = Color3.new(1,1,1)
+
+local speedBox = Instance.new("TextBox", mainFrame)
+speedBox.Name = "SpeedBox"
+speedBox.Size = UDim2.new(0,60,0,30)
+speedBox.Position = UDim2.new(0,280,0,10)
+speedBox.PlaceholderText = "Speed"
+speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+speedBox.TextColor3 = Color3.new(1,1,1)
+
+local addButton = Instance.new("TextButton", mainFrame)
+addButton.Name = "AddButton"
+addButton.Size = UDim2.new(0,50,0,30)
+addButton.Position = UDim2.new(0,350,0,10)
+addButton.Text = "Add"
+addButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+addButton.TextColor3 = Color3.new(1,1,1)
+
+-- زر نسخ ID (animBtn) — خذا الاسم ثابت
+local animBtn = Instance.new("TextButton", mainFrame)
+animBtn.Name = "AnimIdBtn"
+animBtn.Size = UDim2.new(0,50,0,30)
+animBtn.Position = UDim2.new(0,410,0,10)
+animBtn.Text = "ID"
+animBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+animBtn.TextColor3 = Color3.new(1,1,1)
+animBtn.TextScaled = true
+
+-- مربع البحث الجديد
+local searchBox = Instance.new("TextBox", mainFrame)
+searchBox.Name = "SearchBox"
+searchBox.Size = UDim2.new(1,-20,0,30)
+searchBox.Position = UDim2.new(0,10,0,50) -- موقعه الآن تحت مربعات الإدخال
+searchBox.PlaceholderText = "Search Emote Name/ID..."
+searchBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+searchBox.TextColor3 = Color3.new(1,1,1)
+searchBox.ClearTextOnFocus = false -- عشان يبقى الفلتر موجود
+
+searchBox.Changed:Connect(function(property)
+    if property == "Text" then
+        currentSearchFilter = searchBox.Text:lower()
+        updateEmoteList()
+    end
+end)
+
+
+-- قائمة الإيموتات
+local emoteList = Instance.new("ScrollingFrame", mainFrame)
+emoteList.Name = "EmoteList"
+emoteList.Size = UDim2.new(1,-20,1,-90) -- قللنا الطول ليتسع لمربع البحث
+emoteList.Position = UDim2.new(0,10,0,90) -- موقعه الآن تحت مربع البحث
+emoteList.CanvasSize = UDim2.new(0,0,0,0)
+emoteList.ScrollBarThickness = 10
+emoteList.BackgroundTransparency = 0.2
+emoteList.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+-- ============ وظائف تشغيل / إيقاف الأنيميشن (بدون تغيير) ============
+local function playAnimationPart(animId, startTime, endTime, loop, speed)
+    if not currentHumanoid or not currentHumanoid.Parent then return end
+    if not animId then return end
+
+    local anim = Instance.new("Animation")
+    anim.Name = "TmpAnimForPlay"
+    anim.AnimationId = "rbxassetid://"..animId
+
+    local ok, track = pcall(function()
+        return currentHumanoid:LoadAnimation(anim)
+    end)
+    if not ok or not track then return end
+
+    -- سجل التراك تحت الـanimId (سيحل مكانه لو شغّل نفس الـid مرّات)
+    animTracks[animId] = track
+
+    track:Play(0)
+    track.TimePosition = tonumber(startTime) or 0
+
+    if speed then
+        pcall(function() track:AdjustSpeed(tonumber(speed) or 1) end)
+    end
+
+    local length = (tonumber(endTime) or track.Length) - (tonumber(startTime) or 0)
+    if length <= 0 then length = (track.Length or 1) end
+
+    if loop then
+        task.spawn(function()
+            while track and track.IsPlaying and currentHumanoid and currentHumanoid.Parent do
+                task.wait(length)
+                if track and track.IsPlaying then
+                    track.TimePosition = tonumber(startTime) or 0
+                end
+            end
+        end)
+    else
+        task.delay(length, function()
+            if track and track.IsPlaying then
+                track:Stop()
+            end
+        end)
+    end
+end
+
+local function stopAnimation(animId)
+    if animId and animTracks[animId] then
+        pcall(function() animTracks[animId]:Stop() end)
+        animTracks[animId] = nil
+    end
+end
+
+local function stopAllAnimations()
+    for id, track in pairs(animTracks) do
+        if track then
+            pcall(function() track:Stop() end)
+        end
+    end
+    animTracks = {}
+end
+
+-- ============ واجهة تأكيد الحذف الجديدة ============
+local deleteConfirmFrame = Instance.new("Frame")
+deleteConfirmFrame.Name = "DeleteConfirmFrame"
+deleteConfirmFrame.Size = UDim2.new(0,250,0,100)
+deleteConfirmFrame.Position = UDim2.new(0.5,-125,0.5,-50)
+deleteConfirmFrame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+deleteConfirmFrame.Visible = false
+deleteConfirmFrame.Active = true
+deleteConfirmFrame.ZIndex = 10 -- ليكون فوق كل شيء
+deleteConfirmFrame.Parent = mainFrame
+
+local confirmLabel = Instance.new("TextLabel", deleteConfirmFrame)
+confirmLabel.Size = UDim2.new(1,-20,0,30)
+confirmLabel.Position = UDim2.new(0,10,0,10)
+confirmLabel.Text = "Confirm Deletion?"
+confirmLabel.BackgroundTransparency = 1
+confirmLabel.TextColor3 = Color3.new(1,1,1)
+confirmLabel.TextScaled = true
+
+local yesButton = Instance.new("TextButton", deleteConfirmFrame)
+yesButton.Size = UDim2.new(0,80,0,30)
+yesButton.Position = UDim2.new(0,30,0,60)
+yesButton.Text = "Yes"
+yesButton.BackgroundColor3 = Color3.fromRGB(180,60,60)
+
+local noButton = Instance.new("TextButton", deleteConfirmFrame)
+noButton.Size = UDim2.new(0,80,0,30)
+noButton.Position = UDim2.new(1,-110,0,60)
+noButton.Text = "No"
+noButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+
+-- وظيفة لإظهار نافذة التأكيد
+local function showDeleteConfirmation(emoteName, emoteData)
+    confirmLabel.Text = "Delete '"..emoteName.."'?"
+    deleteConfirmFrame.Visible = true
+
+    -- قطع الاتصالات السابقة
+    local yesConn, noConn
+    
+    local function cleanup()
+        if yesConn then yesConn:Disconnect() end
+        if noConn then noConn:Disconnect() end
+        deleteConfirmFrame.Visible = false
+    end
+
+    yesConn = yesButton.MouseButton1Click:Connect(function()
+        emotes[emoteName] = nil
+        saveEmotes()
+        stopAnimation(emoteData.id)
+        updateEmoteList()
+        cleanup()
+    end)
+
+    noConn = noButton.MouseButton1Click:Connect(cleanup)
+end
+
+-- ============ تحديث قائمة الإيموتات (تم التعديل لإضافة فلتر البحث) ============
+local function updateEmoteList()
+    -- مسح العناصر السابقة
+    for _, c in ipairs(emoteList:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+
+    local y = 0
+    for name, data in pairs(emotes) do
+        -- فلتر البحث: يتحقق من اسم الإيموت أو الـID
+        local nameMatches = name:lower():find(currentSearchFilter, 1, true)
+        local idMatches = tostring(data.id):find(currentSearchFilter, 1, true)
+        
+        if currentSearchFilter == "" or nameMatches or idMatches then
+            local item = Instance.new("Frame")
+            item.Size = UDim2.new(1,0,0,50)
+            item.Position = UDim2.new(0,0,0,y)
+            item.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            item.Parent = emoteList
+
+            local label = Instance.new("TextLabel", item)
+            label.Size = UDim2.new(0.2,0,1,0)
+            label.Position = UDim2.new(0,0,0,0)
+            label.Text = name
+            label.BackgroundTransparency = 1
+            label.TextColor3 = Color3.new(1,1,1)
+            label.TextScaled = true
+
+            local play = Instance.new("TextButton", item)
+            play.Size = UDim2.new(0,30,1,0)
+            play.Position = UDim2.new(0.20,0,0,0)
+            play.Text = "▶"
+            play.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            play.TextColor3 = Color3.new(1,1,1)
+            play.MouseButton1Click:Connect(function()
+                local spd = tonumber(speedBox.Text) or 1
+                playAnimationPart(data.id, data.startTime, data.endTime, false, spd)
+            end)
+
+            local loopBtn = Instance.new("TextButton", item)
+            loopBtn.Size = UDim2.new(0,30,1,0)
+            loopBtn.Position = UDim2.new(0.30,0,0,0)
+            loopBtn.Text = "🔁"
+            loopBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            loopBtn.TextColor3 = Color3.new(1,1,1)
+            loopBtn.MouseButton1Click:Connect(function()
+                local spd = tonumber(speedBox.Text) or 1
+                playAnimationPart(data.id, data.startTime, data.endTime, true, spd)
+            end)
+
+            local stopBtn = Instance.new("TextButton", item)
+            stopBtn.Size = UDim2.new(0,30,1,0)
+            stopBtn.Position = UDim2.new(0.40,0,0,0)
+            stopBtn.Text = "■"
+            stopBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            stopBtn.TextColor3 = Color3.new(1,1,1)
+            stopBtn.MouseButton1Click:Connect(function()
+                stopAnimation(data.id)
+            end)
+
+            local stopAllBtn = Instance.new("TextButton", item)
+            stopAllBtn.Size = UDim2.new(0,40,1,0)
+            stopAllBtn.Position = UDim2.new(0.50,0,0,0)
+            stopAllBtn.Text = "Stop All"
+            stopAllBtn.TextScaled = true
+            stopAllBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            stopAllBtn.TextColor3 = Color3.new(1,1,1)
+            stopAllBtn.MouseButton1Click:Connect(stopAllAnimations)
+
+            local renameBtn = Instance.new("TextButton", item)
+            renameBtn.Size = UDim2.new(0,40,1,0)
+            renameBtn.Position = UDim2.new(0.60,0,0,0)
+            renameBtn.Text = "Rename"
+            renameBtn.TextScaled = true
+            renameBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            renameBtn.TextColor3 = Color3.new(1,1,1)
+            renameBtn.MouseButton1Click:Connect(function()
+                local box = Instance.new("TextBox", item)
+                box.Size = UDim2.new(0.4,0,1,0)
+                box.Position = UDim2.new(0.20,0,0,0)
+                box.Text = name
+                box.TextScaled = true
+                box.BackgroundColor3 = Color3.fromRGB(50,50,50)
+                box.TextColor3 = Color3.new(1,1,1)
+                box.FocusLost:Connect(function(enterPressed)
+                    if enterPressed and box.Text~="" and box.Text ~= name then
+                        emotes[box.Text] = data
+                        emotes[name] = nil
+                        saveEmotes()
+                        updateEmoteList()
+                    else
+                        box:Destroy()
+                    end
+                end)
+            end)
+
+            local saveBtn = Instance.new("TextButton", item)
+            saveBtn.Size = UDim2.new(0,40,1,0)
+            saveBtn.Position = UDim2.new(0.70,0,0,0)
+            saveBtn.Text = "Save"
+            saveBtn.TextScaled = true
+            saveBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            saveBtn.TextColor3 = Color3.new(1,1,1)
+            saveBtn.MouseButton1Click:Connect(saveEmotes)
+
+            local deleteBtn = Instance.new("TextButton", item)
+            deleteBtn.Size = UDim2.new(0,50,1,0)
+            deleteBtn.Position = UDim2.new(0.80,0,0,0)
+            deleteBtn.Text = "Delete"
+            deleteBtn.TextScaled = true
+            deleteBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
+            deleteBtn.TextColor3 = Color3.new(1,1,1)
+            deleteBtn.MouseButton1Click:Connect(function()
+                showDeleteConfirmation(name, data) -- نستخدم دالة التأكيد الجديدة
+            end)
+
+            y = y + 55
+        end -- نهاية شرط البحث
+    end
+
+    emoteList.CanvasSize = UDim2.new(0,0,0,math.max(y,1))
+end
+
+-- ============ دالة تجهيز الشخصية عند الانضمام / إعادة الإحياء (بدون تغيير) ============
+local function setupCharacter(character)
+    -- أوقف أي تراك مفتوح منذ الشخصية القديمة
+    for id, track in pairs(animTracks) do
+        if track then
+            pcall(function() track:Stop() end)
+        end
+    end
+    animTracks = {}
+
+    currentCharacter = character
+    if not currentCharacter then return end
+
+    currentHumanoid = currentCharacter:FindFirstChildOfClass("Humanoid") or currentCharacter:WaitForChild("Humanoid", 5)
+    if not currentHumanoid then return end
+
+    -- احصل على Animator (قد لا يكون فوراً)
+    currentAnimator = currentHumanoid:FindFirstChildWhichIsA("Animator") or currentHumanoid:WaitForChild("Animator", 5)
+
+    -- افصل مع الاتصال القديم لو كان موجود
+    if animPlayedConn then
+        pcall(function() animPlayedConn:Disconnect() end)
+        animPlayedConn = nil
+    end
+
+    -- ربط جديد لمراقبة AnimationPlayed
+    if currentAnimator then
+        animPlayedConn = currentAnimator.AnimationPlayed:Connect(function(track)
+            if track and track.Animation and track.Animation.AnimationId then
+                local id = string.match(track.Animation.AnimationId, "%d+")
+                if id then
+                    currentAnimId = id
+                    if animBtn then
+                        pcall(function() animBtn.Text = id end)
+                    end
+                end
+            end
+        end)
+    end
+
+    -- حرصاً على بقاء الـGUI ظاهر بعد الموت
+    if mainFrame then
+        mainFrame.Visible = true
+    end
+end
+
+-- ============ ربط أحداث الأزرار الأساسية (بدون تغيير) ============
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+animBtn.MouseButton1Click:Connect(function()
+    if currentAnimId and type(setclipboard) == "function" then
+        pcall(function() setclipboard(currentAnimId) end)
+        print("تم نسخ Animation ID:", currentAnimId)
+    elseif currentAnimId then
+        print("Animation ID:", currentAnimId)
+    end
+end)
+
+-- زر الإضافة: يقسم الأنيميشن بحسب الـslice (بدون تغيير)
+addButton.MouseButton1Click:Connect(function()
+    local animId = tostring(idBox.Text or "")
+    local slice = tonumber(sliceBox.Text)
+    if animId == "" or not slice or slice <= 0 then
+        -- invalid input
+        return
+    end
+
+    -- تأكد أن لدينا هومانويد (إذا ماكانش حاول ننتظر الشخصية)
+    if not currentHumanoid or not currentHumanoid.Parent then
+        if player.Character then
+            currentHumanoid = player.Character:FindFirstChildOfClass("Humanoid") or player.Character:WaitForChild("Humanoid", 5)
+        else
+            -- نستنى الشخصية الجايه
+            player.CharacterAdded:Wait()
+            currentHumanoid = player.Character and player.Character:WaitForChild("Humanoid", 5)
+        end
+        if not currentHumanoid then
+            return
+        end
+    end
+
+    -- نحاول نقرأ الطول الإجمالي للأنيميشن
+    local ok, totalLen = pcall(function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://"..animId
+        local track = currentHumanoid:LoadAnimation(anim)
+        track:Play()
+        local len = track.Length
+        track:Stop()
+        return len
+    end)
+
+    if not ok or not totalLen or totalLen <= 0 then
+        -- فشل قراءة الطول، نخرج
+        return
+    end
+
+    local index = 1
+    for t = 0, totalLen, slice do
+        local startTime = t
+        local endTime = math.min(t + slice, totalLen)
+        local name = animId .. "_Part" .. index
+        emotes[name] = { id = animId, startTime = startTime, endTime = endTime }
+        index = index + 1
+    end
+
+    saveEmotes()
+    updateEmoteList()
+end)
+
+-- ============ تهيئة أولية + ربط حدث تغيير الشخصية (بدون تغيير) ============
+loadEmotes()
+updateEmoteList()
+
+if player.Character then
+    setupCharacter(player.Character)
+end
+player.CharacterAdded:Connect(function(char)
+    -- تأخير بسيط لتأكد من تحميل الـHumanoid/Animator قبل التهيئة
+    task.wait(0.1)
+    setupCharacter(char)
+end)
