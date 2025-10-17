@@ -1,0 +1,405 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+
+-- =============================================================
+-- متغيرات التحكم
+-- =============================================================
+local looping = false
+local loopSpeed = 1
+local animLooping = false
+local animTrack = nil
+local antiSit = false
+local antiSitConn = nil
+local following = false
+local followConn = nil
+local target = nil
+local faceLocked = false
+local initialCFrame = nil
+local faceLockConn = nil
+
+-- Tween follow settings
+local currentFollowTween = nil
+local followTweenTime = 0.22
+local followTweenInfo = TweenInfo.new(followTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+-- =============================================================
+
+-- إنشاء GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FullControlGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 430)
+frame.Position = UDim2.new(0.35, 0, 0.35, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+title.Text = "🔥 لوحة تحكم اللوب (محدثة) 🔥"
+title.Font = Enum.Font.SourceSansBold
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Parent = frame
+
+-- سرعة اللوب
+local SpeedBox = Instance.new("TextBox")
+SpeedBox.Size = UDim2.new(0.8, 0, 0, 30)
+SpeedBox.Position = UDim2.new(0.1, 0, 0.12, 0)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SpeedBox.Text = "1"
+SpeedBox.PlaceholderText = "سرعة اللوب (عدد)"
+SpeedBox.TextColor3 = Color3.new(1, 1, 1)
+SpeedBox.TextScaled = true
+SpeedBox.Parent = frame
+
+local ApplySpeed = Instance.new("TextButton")
+ApplySpeed.Size = UDim2.new(0.8, 0, 0, 28)
+ApplySpeed.Position = UDim2.new(0.1, 0, 0.22, 0)
+ApplySpeed.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+ApplySpeed.Text = "تطبيق السرعة ✅"
+ApplySpeed.TextScaled = true
+ApplySpeed.Font = Enum.Font.SourceSansBold
+ApplySpeed.TextColor3 = Color3.new(1, 1, 1)
+ApplySpeed.Parent = frame
+
+ApplySpeed.MouseButton1Click:Connect(function()
+    local val = tonumber(SpeedBox.Text)
+    if val and val > 0 then
+        loopSpeed = math.max(0.000001, 1 / (val * 0.004))
+        ApplySpeed.Text = "تم ✅"
+        task.wait(0.4)
+        ApplySpeed.Text = "تطبيق السرعة ✅"
+    else
+        SpeedBox.Text = "قيمة غير صالحة!"
+    end
+end)
+
+-- لوب الريموت
+local LoopBtn = Instance.new("TextButton")
+LoopBtn.Size = UDim2.new(0.8, 0, 0, 35)
+LoopBtn.Position = UDim2.new(0.1, 0, 0.33, 0)
+LoopBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+LoopBtn.Text = "تشغيل لوب الريموت 🔁"
+LoopBtn.TextColor3 = Color3.new(1, 1, 1)
+LoopBtn.TextScaled = true
+LoopBtn.Parent = frame
+
+-- دالة playWear المصححة لاسترجاع سلوك الريموت كما كان
+local function playWear()
+    local avatarEditorRemote = ReplicatedStorage:FindFirstChild("AvatarEditor") and ReplicatedStorage.AvatarEditor:FindFirstChild("RemoteEvent")
+    if not avatarEditorRemote then
+        warn("RemoteEvent not found: AvatarEditor.RemoteEvent")
+        return
+    end
+
+    local costumeItem = nil
+
+    -- 1) حاول داخل مجلد اللاعب Players/<name>/AE_Costumes
+    local playerFolder = Players:FindFirstChild(player.Name)
+    if playerFolder then
+        local pCost = playerFolder:FindFirstChild("AE_Costumes")
+        if pCost then
+            costumeItem = pCost:FindFirstChild("mj") or pCost:GetChildren()[1]
+        end
+    end
+
+    -- 2) حاول داخل ReplicatedStorage.AE_Costumes
+    if not costumeItem then
+        local rsCost = ReplicatedStorage:FindFirstChild("AE_Costumes")
+        if rsCost then
+            costumeItem = rsCost:FindFirstChild("mj") or rsCost:GetChildren()[1]
+        end
+    end
+
+    -- 3) كحل بديل، حاول استخدام AE_Costumes داخل لاعب معروف (مثل 64REMA) إن وُجد
+    if not costumeItem then
+        local fallbackPlayer = Players:FindFirstChild("64REMA")
+        if fallbackPlayer then
+            local fbCost = fallbackPlayer:FindFirstChild("AE_Costumes")
+            if fbCost then
+                costumeItem = fbCost:FindFirstChild("mj") or fbCost:GetChildren()[1]
+            end
+        end
+    end
+
+    -- 4) كاحتياط نهائي، استخدم أي عنصر داخل ReplicatedStorage إن كان مناسباً
+    if not costumeItem then
+        local allChildren = ReplicatedStorage:GetChildren()
+        for _, obj in ipairs(allChildren) do
+            if obj:IsA("Folder") and obj.Name:find("Cost") then
+                costumeItem = obj:GetChildren()[1]
+                break
+            end
+        end
+    end
+
+    if costumeItem then
+        local args = {"wear", costumeItem}
+        avatarEditorRemote:FireServer(unpack(args))
+    else
+        warn("Costume item not found for playWear")
+    end
+end
+
+LoopBtn.MouseButton1Click:Connect(function()
+    looping = not looping
+    if looping then
+        LoopBtn.Text = "إيقاف لوب الريموت ⏹️"
+        task.spawn(function()
+            while looping do
+                playWear()
+                task.wait(loopSpeed)
+            end
+        end)
+    else
+        LoopBtn.Text = "تشغيل لوب الريموت 🔁"
+    end
+end)
+
+-- لوب الأنميشن
+local AnimBtn = Instance.new("TextButton")
+AnimBtn.Size = UDim2.new(0.8, 0, 0, 35)
+AnimBtn.Position = UDim2.new(0.1, 0, 0.46, 0)
+AnimBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 90)
+AnimBtn.Text = "تشغيل لوب الأنميشن 🎬"
+AnimBtn.TextColor3 = Color3.new(0, 0, 0)
+AnimBtn.TextScaled = true
+AnimBtn.Parent = frame
+
+local function playAnimation()
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if animTrack then
+            pcall(function() animTrack:Stop() end)
+            animTrack = nil
+        end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://122257458498464"
+        animTrack = humanoid:LoadAnimation(anim)
+        animTrack:Play()
+    end
+end
+
+AnimBtn.MouseButton1Click:Connect(function()
+    animLooping = not animLooping
+    if animLooping then
+        AnimBtn.Text = "إيقاف لوب الأنميشن ⏹️"
+        task.spawn(function()
+            while animLooping do
+                playAnimation()
+                task.wait(loopSpeed)
+            end
+            if animTrack then pcall(function() animTrack:Stop() end) animTrack = nil end
+        end)
+    else
+        AnimBtn.Text = "تشغيل لوب الأنميشن 🎬"
+        if animTrack then pcall(function() animTrack:Stop() end) animTrack = nil end
+    end
+end)
+
+-- مانع الجلوس
+local AntiSitBtn = Instance.new("TextButton")
+AntiSitBtn.Size = UDim2.new(0.8, 0, 0, 35)
+AntiSitBtn.Position = UDim2.new(0.1, 0, 0.59, 0)
+AntiSitBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+AntiSitBtn.Text = "تشغيل مانع الجلوس 🚫"
+AntiSitBtn.TextScaled = true
+AntiSitBtn.TextColor3 = Color3.new(1, 1, 1)
+AntiSitBtn.Parent = frame
+
+local function enableAntiSit()
+    if antiSitConn then antiSitConn:Disconnect() end
+    antiSitConn = RunService.Heartbeat:Connect(function()
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Sit then hum.Sit = false end
+        end
+    end)
+end
+
+local function disableAntiSit()
+    if antiSitConn then antiSitConn:Disconnect() antiSitConn = nil end
+end
+
+AntiSitBtn.MouseButton1Click:Connect(function()
+    antiSit = not antiSit
+    if antiSit then
+        AntiSitBtn.Text = "إيقاف مانع الجلوس ✅"
+        enableAntiSit()
+    else
+        AntiSitBtn.Text = "تشغيل مانع الجلوس 🚫"
+        disableAntiSit()
+    end
+end)
+
+-- تتبع لاعب (مدخل الاسم، أزرار تطبيق/إيقاف)
+local TargetBox = Instance.new("TextBox")
+TargetBox.Size = UDim2.new(0.8, 0, 0, 30)
+TargetBox.Position = UDim2.new(0.1, 0, 0.73, 0)
+TargetBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+TargetBox.PlaceholderText = "أول حرفين من الاسم"
+TargetBox.Text = ""
+TargetBox.TextColor3 = Color3.new(1, 1, 1)
+TargetBox.TextScaled = true
+TargetBox.Parent = frame
+
+local FollowBtn = Instance.new("TextButton")
+FollowBtn.Size = UDim2.new(0.35, 0, 0, 30)
+FollowBtn.Position = UDim2.new(0.1, 0, 0.85, 0)
+FollowBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+FollowBtn.Text = "تطبيق ✅"
+FollowBtn.TextScaled = true
+FollowBtn.Font = Enum.Font.SourceSansBold
+FollowBtn.TextColor3 = Color3.new(1, 1, 1)
+FollowBtn.Parent = frame
+
+local StopFollowBtn = Instance.new("TextButton")
+StopFollowBtn.Size = UDim2.new(0.35, 0, 0, 30)
+StopFollowBtn.Position = UDim2.new(0.55, 0, 0.85, 0)
+StopFollowBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
+StopFollowBtn.Text = "إيقاف ❌"
+StopFollowBtn.TextScaled = true
+StopFollowBtn.Font = Enum.Font.SourceSansBold
+StopFollowBtn.TextColor3 = Color3.new(1, 1, 1)
+StopFollowBtn.Parent = frame
+
+local function stopFollowing()
+    following = false
+    if followConn then followConn:Disconnect() followConn = nil end
+    if currentFollowTween then pcall(function() currentFollowTween:Cancel() end) currentFollowTween = nil end
+    target = nil
+end
+
+local function startFollowing()
+    if followConn then followConn:Disconnect() followConn = nil end
+    if currentFollowTween then pcall(function() currentFollowTween:Cancel() end) currentFollowTween = nil end
+
+    followConn = RunService.Heartbeat:Connect(function()
+        if not (following and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+           and player.Character and player.Character:FindFirstChild("HumanoidRootPart")) then
+            return
+        end
+
+        local targetHRP = target.Character.HumanoidRootPart
+        local playerHRP = player.Character.HumanoidRootPart
+
+        local offset = -targetHRP.CFrame.LookVector * 2
+        local goalPosition = targetHRP.Position + offset
+        goalPosition = Vector3.new(goalPosition.X, playerHRP.Position.Y, goalPosition.Z)
+
+        local goalCFrame = CFrame.new(goalPosition, targetHRP.Position)
+
+        if currentFollowTween then pcall(function() currentFollowTween:Cancel() end) currentFollowTween = nil end
+
+        local tweenProps = {CFrame = goalCFrame}
+        currentFollowTween = TweenService:Create(playerHRP, followTweenInfo, tweenProps)
+        currentFollowTween:Play()
+    end)
+end
+
+FollowBtn.MouseButton1Click:Connect(function()
+    local prefix = TargetBox.Text:lower()
+    if prefix == "" then TargetBox.Text = "أدخل اسمًا أو بادئة" return end
+
+    local found = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Name:lower():sub(1, #prefix) == prefix then
+            found = p
+            break
+        end
+    end
+
+    if found then
+        target = found
+        following = true
+        startFollowing()
+    else
+        TargetBox.Text = "اللاعب غير موجود!"
+    end
+end)
+
+StopFollowBtn.MouseButton1Click:Connect(function()
+    stopFollowing()
+end)
+
+-- تثبيت الوجه (Face Lock)
+local FaceLockBtn = Instance.new("TextButton")
+FaceLockBtn.Size = UDim2.new(0.8, 0, 0, 35)
+FaceLockBtn.Position = UDim2.new(0.1, 0, 0.92, 0)
+FaceLockBtn.BackgroundColor3 = Color3.fromRGB(150, 80, 255)
+FaceLockBtn.Text = "تشغيل تثبيت الوجه 🔒"
+FaceLockBtn.TextScaled = true
+FaceLockBtn.TextColor3 = Color3.new(1, 1, 1)
+FaceLockBtn.Parent = frame
+
+local function enableFaceLock()
+    if faceLockConn then faceLockConn:Disconnect() faceLockConn = nil end
+
+    if not following then
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            initialCFrame = character.HumanoidRootPart.CFrame
+        else
+            initialCFrame = nil
+        end
+    end
+
+    faceLockConn = RunService.Heartbeat:Connect(function()
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local HRP = character.HumanoidRootPart
+            local targetCFrame
+
+            if following and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local targetPos = target.Character.HumanoidRootPart.Position
+                targetCFrame = CFrame.new(HRP.Position, targetPos)
+            else
+                if initialCFrame then
+                    targetCFrame = CFrame.new(HRP.Position) * initialCFrame.Rotation
+                else
+                    initialCFrame = HRP.CFrame
+                    targetCFrame = CFrame.new(HRP.Position) * initialCFrame.Rotation
+                end
+            end
+
+            HRP.CFrame = CFrame.new(HRP.Position, (targetCFrame * CFrame.new(0,0,-1)).p)
+        end
+    end)
+end
+
+local function disableFaceLock()
+    if faceLockConn then faceLockConn:Disconnect() faceLockConn = nil end
+    initialCFrame = nil
+end
+
+FaceLockBtn.MouseButton1Click:Connect(function()
+    faceLocked = not faceLocked
+    if faceLocked then
+        FaceLockBtn.Text = "إيقاف تثبيت الوجه ✅"
+        enableFaceLock()
+    else
+        FaceLockBtn.Text = "تشغيل تثبيت الوجه 🔒"
+        disableFaceLock()
+    end
+end)
+
+-- يبقى بعد الموت: إعادة تفعيل الميزات عند إعادة تولّد الشخصية
+player.CharacterAdded:Connect(function()
+    gui.Parent = player:WaitForChild("PlayerGui")
+
+    if antiSit then enableAntiSit() end
+    if faceLocked then
+        if not following then initialCFrame = nil end
+        enableFaceLock()
+    end
+    if following and target then startFollowing() end
+end)
