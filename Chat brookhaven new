@@ -1,0 +1,258 @@
+-- إعداد الخدمات
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1RPNam1eTex1t")
+
+-- إنشاء الـ GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "RPChatGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999
+gui.Parent = CoreGui
+
+-- === دالة سحب يدوية (100% شغالة على الجوال والكمبيوتر) ===
+local function makeDraggable(obj)
+	obj.Active = true
+
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		obj.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+
+	obj.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = obj.Position
+
+			local conn
+			conn = input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					conn:Disconnect()
+				end
+			end)
+		end
+	end)
+
+	obj.InputChanged:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+-- === نص الترحيب (يختفي بعد 3 ثواني) ===
+local welcomeLabel = Instance.new("TextLabel")
+welcomeLabel.Size = UDim2.fromOffset(400, 80)
+welcomeLabel.Position = UDim2.fromScale(0.5, 0.5)
+welcomeLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+welcomeLabel.BackgroundTransparency = 1
+welcomeLabel.Text = "تم تفعيل شات الـ RP"
+welcomeLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+welcomeLabel.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+welcomeLabel.TextSize = 36
+welcomeLabel.ZIndex = 10
+welcomeLabel.Parent = gui
+
+task.delay(3, function()
+	if welcomeLabel and welcomeLabel.Parent then
+		welcomeLabel:Destroy()
+	end
+end)
+
+-- === الإطار (الشات) - قابل للسحب فقط ===
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(300, 100)
+frame.Position = UDim2.fromScale(0.5, 0.5)  -- في منتصف الشاشة أول مرة
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+frame.BackgroundTransparency = 0.1
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.ClipsDescendants = true
+frame.Visible = false
+frame.Parent = gui
+
+-- زوايا
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = frame
+
+-- ظل
+local shadow = Instance.new("ImageLabel")
+shadow.Size = UDim2.fromOffset(330, 130)
+shadow.Position = UDim2.fromOffset(-15, 10)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://6014261993"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.7
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+shadow.ZIndex = 0
+shadow.Parent = frame
+
+-- عنوان
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "دردشة الـ RP"
+title.TextColor3 = Color3.fromRGB(150, 220, 255)
+title.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 6
+title.Parent = frame
+
+-- زر إغلاق
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.fromOffset(32, 32)
+closeButton.Position = UDim2.new(1, -40, 0, 4)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+closeButton.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+closeButton.TextSize = 20
+closeButton.ZIndex = 6
+closeButton.Parent = frame
+
+-- مربع الكتابة
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(1, -20, 0, 38)
+textBox.Position = UDim2.fromOffset(10, 45)
+textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+textBox.BackgroundTransparency = 0.2
+textBox.BorderSizePixel = 0
+textBox.Text = ""
+textBox.PlaceholderText = "اكتب..."
+textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 170)
+textBox.TextColor3 = Color3.fromRGB(220, 220, 255)
+textBox.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+textBox.TextSize = 18
+textBox.ZIndex = 2
+textBox.Parent = frame
+
+local textBoxCorner = Instance.new("UICorner")
+textBoxCorner.CornerRadius = UDim.new(0, 10)
+textBoxCorner.Parent = textBox
+
+-- أيقونة إرسال
+local sendIcon = Instance.new("ImageLabel")
+sendIcon.Size = UDim2.fromOffset(28, 28)
+sendIcon.Position = UDim2.new(1, -38, 0, 5)
+sendIcon.BackgroundTransparency = 1
+sendIcon.Image = "rbxassetid://7072706793"
+sendIcon.ImageColor3 = Color3.fromRGB(100, 180, 255)
+sendIcon.ZIndex = 3
+sendIcon.Parent = textBox
+
+-- صوت
+local bubbleSound = Instance.new("Sound")
+bubbleSound.SoundId = "rbxassetid://138104622"
+bubbleSound.Volume = 0.6
+bubbleSound.Parent = frame
+
+-- === زر فتح الشات (قابل للسحب) ===
+local openButton = Instance.new("TextButton")
+openButton.Size = UDim2.fromOffset(160, 45)
+openButton.Position = UDim2.fromScale(0.5, 0.9)
+openButton.AnchorPoint = Vector2.new(0.5, 0.5)
+openButton.BackgroundColor3 = Color3.fromRGB(30, 140, 255)
+openButton.BackgroundTransparency = 0.2
+openButton.Text = "افتح الشات (T)"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+openButton.TextSize = 17
+openButton.ZIndex = 10
+openButton.Active = true
+openButton.Visible = true
+openButton.Parent = gui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 12)
+openCorner.Parent = openButton
+
+-- === تفعيل السحب للشات وزر الفتح ===
+makeDraggable(frame)
+makeDraggable(openButton)
+
+-- === فتح وإغلاق ===
+local isOpen = false
+
+local function openChat()
+	if isOpen then return end
+	isOpen = true
+	frame.Visible = true
+	textBox:CaptureFocus()
+	openButton.Visible = false
+end
+
+local function closeChat()
+	if not isOpen then return end
+	isOpen = false
+	frame.Visible = false
+	openButton.Visible = true
+	textBox:ReleaseFocus()
+end
+
+openButton.MouseButton1Click:Connect(openChat)
+closeButton.MouseButton1Click:Connect(closeChat)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.T then
+		if isOpen then closeChat() else openChat() end
+	end
+end)
+
+-- === دالة الإرسال ===
+local sending = false
+local function sendText()
+	if sending or not isOpen then return end
+	sending = true
+
+	local txt = textBox.Text
+	if not txt or txt == "" then txt = " " end
+	if #txt > 150 then txt = txt:sub(1, 150) end
+
+	remote:FireServer("RolePlayName", txt)
+
+	bubbleSound:Play()
+	sendIcon.ImageColor3 = Color3.fromRGB(80, 220, 120)
+	task.delay(0.2, function() sendIcon.ImageColor3 = Color3.fromRGB(100, 180, 255) end)
+
+	textBox.Text = ""
+	task.delay(0.3, function() sending = false end)
+end
+
+textBox.FocusLost:Connect(function(enter) if enter then sendText() end end)
+sendIcon.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		sendText()
+	end
+end)
+
+-- === حماية Respawn ===
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	if not isOpen then openButton.Visible = true end
+end)
