@@ -1,28 +1,45 @@
--- إعداد الخدمات
+-- [ مدعوم من جميع الـ Executors | شغال على الجوال والكمبيوتر ]
+-- يعمل على: Synapse, Krnl, Fluxus, Delta, Comet, Script-Ware, etc.
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local remote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1RPNam1eTex1t")
+local playerGui = player:WaitForChild("PlayerGui")
 
--- إنشاء الـ GUI
+-- استخدام PlayerGui بدل CoreGui للتوافق الأعلى
 local gui = Instance.new("ScreenGui")
 gui.Name = "RPChatGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999
-gui.Parent = CoreGui
+gui.Parent = playerGui  -- أكثر أمانًا من CoreGui
 
--- === دالة سحب يدوية (100% شغالة على الجوال والكمبيوتر) ===
+-- البحث عن الـ Remote
+local remote
+pcall(function()
+	remote = ReplicatedStorage:WaitForChild("RE", 10):WaitForChild("1RPNam1eTex1t", 10)
+end)
+if not remote then
+	warn("لم يتم العثور على الـ Remote! تأكد من الاسم.")
+	return
+end
+
+-- دالة سحب متوافقة مع الجوال والكمبيوتر
 local function makeDraggable(obj)
+	if not obj then return end
 	obj.Active = true
 
 	local dragging = false
 	local dragInput, dragStart, startPos
 
 	local function update(input)
+		if not obj or not obj.Parent then return end
 		local delta = input.Position - dragStart
 		obj.Position = UDim2.new(
 			startPos.X.Scale,
@@ -42,7 +59,7 @@ local function makeDraggable(obj)
 			conn = input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
-					conn:Disconnect()
+					if conn.Connected then conn:Disconnect() end
 				end
 			end)
 		end
@@ -55,13 +72,13 @@ local function makeDraggable(obj)
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragging then
+		if input == dragInput and dragging and obj and obj.Parent then
 			update(input)
 		end
 	end)
 end
 
--- === نص الترحيب (يختفي بعد 3 ثواني) ===
+-- نص الترحيب (يختفي بعد 3 ثواني)
 local welcomeLabel = Instance.new("TextLabel")
 welcomeLabel.Size = UDim2.fromOffset(400, 80)
 welcomeLabel.Position = UDim2.fromScale(0.5, 0.5)
@@ -80,20 +97,18 @@ task.delay(3, function()
 	end
 end)
 
--- === الإطار (الشات) - قابل للسحب فقط ===
+-- الإطار الرئيسي
 local frame = Instance.new("Frame")
 frame.Size = UDim2.fromOffset(300, 100)
-frame.Position = UDim2.fromScale(0.5, 0.5)  -- في منتصف الشاشة أول مرة
+frame.Position = UDim2.fromScale(0.5, 0.5)
 frame.AnchorPoint = Vector2.new(0.5, 0.5)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
-frame.Active = true
 frame.ClipsDescendants = true
 frame.Visible = false
 frame.Parent = gui
 
--- زوايا
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 16)
 corner.Parent = frame
@@ -123,7 +138,7 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 6
 title.Parent = frame
 
--- زر إغلاق
+-- زر الإغلاق
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32, 32)
 closeButton.Position = UDim2.new(1, -40, 0, 4)
@@ -155,7 +170,7 @@ local textBoxCorner = Instance.new("UICorner")
 textBoxCorner.CornerRadius = UDim.new(0, 10)
 textBoxCorner.Parent = textBox
 
--- أيقونة إرسال
+-- أيقونة الإرسال
 local sendIcon = Instance.new("ImageLabel")
 sendIcon.Size = UDim2.fromOffset(28, 28)
 sendIcon.Position = UDim2.new(1, -38, 0, 5)
@@ -165,13 +180,13 @@ sendIcon.ImageColor3 = Color3.fromRGB(100, 180, 255)
 sendIcon.ZIndex = 3
 sendIcon.Parent = textBox
 
--- صوت
+-- صوت الإرسال
 local bubbleSound = Instance.new("Sound")
 bubbleSound.SoundId = "rbxassetid://138104622"
 bubbleSound.Volume = 0.6
 bubbleSound.Parent = frame
 
--- === زر فتح الشات (قابل للسحب) ===
+-- زر فتح الشات
 local openButton = Instance.new("TextButton")
 openButton.Size = UDim2.fromOffset(160, 45)
 openButton.Position = UDim2.fromScale(0.5, 0.9)
@@ -183,27 +198,29 @@ openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 openButton.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 openButton.TextSize = 17
 openButton.ZIndex = 10
-openButton.Active = true
-openButton.Visible = true
 openButton.Parent = gui
 
 local openCorner = Instance.new("UICorner")
 openCorner.CornerRadius = UDim.new(0, 12)
 openCorner.Parent = openButton
 
--- === تفعيل السحب للشات وزر الفتح ===
+-- تفعيل السحب
 makeDraggable(frame)
 makeDraggable(openButton)
 
--- === فتح وإغلاق ===
+-- فتح وإغلاق الشات
 local isOpen = false
 
 local function openChat()
 	if isOpen then return end
 	isOpen = true
 	frame.Visible = true
-	textBox:CaptureFocus()
 	openButton.Visible = false
+	task.delay(0.1, function()
+		if textBox and textBox.Parent then
+			textBox:CaptureFocus()
+		end
+	end)
 end
 
 local function closeChat()
@@ -211,48 +228,74 @@ local function closeChat()
 	isOpen = false
 	frame.Visible = false
 	openButton.Visible = true
-	textBox:ReleaseFocus()
+	if textBox then
+		textBox:ReleaseFocus()
+	end
 end
 
 openButton.MouseButton1Click:Connect(openChat)
 closeButton.MouseButton1Click:Connect(closeChat)
 
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then return end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
 	if input.KeyCode == Enum.KeyCode.T then
 		if isOpen then closeChat() else openChat() end
 	end
 end)
 
--- === دالة الإرسال ===
+-- دالة الإرسال (محمية)
 local sending = false
 local function sendText()
 	if sending or not isOpen then return end
 	sending = true
 
-	local txt = textBox.Text
-	if not txt or txt == "" then txt = " " end
+	local txt = textBox.Text:gsub("^%s*(.-)%s*$", "%1") -- trim
+	if txt == "" then txt = " " end
 	if #txt > 150 then txt = txt:sub(1, 150) end
 
-	remote:FireServer("RolePlayName", txt)
+	-- إرسال آمن
+	pcall(function()
+		remote:FireServer("RolePlayName", txt)
+	end)
 
-	bubbleSound:Play()
-	sendIcon.ImageColor3 = Color3.fromRGB(80, 220, 120)
-	task.delay(0.2, function() sendIcon.ImageColor3 = Color3.fromRGB(100, 180, 255) end)
+	-- تأثيرات
+	if bubbleSound then bubbleSound:Play() end
+	if sendIcon then
+		sendIcon.ImageColor3 = Color3.fromRGB(80, 220, 120)
+		task.delay(0.2, function()
+			if sendIcon and sendIcon.Parent then
+				sendIcon.ImageColor3 = Color3.fromRGB(100, 180, 255)
+			end
+		end)
+	end
 
 	textBox.Text = ""
 	task.delay(0.3, function() sending = false end)
 end
 
-textBox.FocusLost:Connect(function(enter) if enter then sendText() end end)
+textBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then sendText() end
+end)
+
 sendIcon.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		sendText()
 	end
 end)
 
--- === حماية Respawn ===
+-- حماية من الـ Respawn
 player.CharacterAdded:Connect(function()
-	task.wait(1)
-	if not isOpen then openButton.Visible = true end
+	task.delay(1, function()
+		if not isOpen and openButton and openButton.Parent then
+			openButton.Visible = true
+		end
+	end)
 end)
+
+-- منع التكرار (إذا تم حقنه أكثر من مرة)
+if getgenv and getgenv().RPChatLoaded then
+	warn("الشات مفعل مسبقًا!")
+	return
+else
+	if getgenv then getgenv().RPChatLoaded = true end
+end
