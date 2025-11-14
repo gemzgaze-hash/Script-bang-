@@ -1,0 +1,650 @@
+-- Emote Cutter Pro GUI - مع writefile (حفظ دائم) - Arceus X Neo
+-- يحفظ في emotes_data_pro.json - يعمل 100% على Arceus X Neo V5
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local jsonFile = "emotes_data_pro.json"  -- ملف الحفظ
+local emotes = {}
+local animTracks = {}
+local currentAnimId = nil
+local currentCharacter = nil
+local currentHumanoid = nil
+local currentAnimator = nil
+local animPlayedConn = nil
+local currentSearchFilter = ""
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local previewTrack = nil
+local cutterPanel = nil
+local currentEditingEmote = nil
+local draggingStart = false
+local draggingEnd = false
+
+-- تحميل من الملف
+local function loadEmotes()
+    if isfile and isfile(jsonFile) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(jsonFile))
+        end)
+        if success and type(data) == "table" then
+            emotes = data
+            print("تم تحميل " .. #emotes .. " إيموت من " .. jsonFile)
+        else
+            emotes = {}
+            print("فشل تحميل الملف، تم البدء بقائمة فارغة")
+        end
+    else
+        emotes = {}
+        print("لا يوجد ملف حفظ، تم البدء بقائمة فارغة")
+    end
+end
+
+-- حفظ في الملف
+local function saveEmotes()
+    if writefile then
+        pcall(function()
+            writefile(jsonFile, HttpService:JSONEncode(emotes))
+            print("تم حفظ " .. #emotes .. " إيموت في " .. jsonFile)
+        end)
+    else
+        print("writefile غير مدعوم")
+    end
+end
+
+-- حذف GUI قديم
+pcall(function()
+    if player.PlayerGui:FindFirstChild("EmoteGuiPro") then
+        player.PlayerGui.EmoteGuiPro:Destroy()
+    end
+end)
+
+-- إنشاء ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EmoteGuiPro"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- الإطار الرئيسي
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = isMobile and UDim2.new(0.95, 0, 0.8, 0) or UDim2.new(0, 600, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -mainFrame.Size.X.Offset/2, 0.5, -mainFrame.Size.Y.Offset/2)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+-- زر الفتح
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = isMobile and UDim2.new(0, 80, 0, 80) or UDim2.new(0, 120, 0, 40)
+toggleButton.Position = isMobile and UDim2.new(0.5, -40, 1, -100) or UDim2.new(0, 20, 0, 200)
+toggleButton.Text = isMobile and "Emotes" or "Emotes Pro"
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.Parent = screenGui
+
+-- زر إغلاق
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 35, 0, 35)
+closeButton.Position = UDim2.new(1, -40, 0, 5)
+closeButton.Text = "X"
+closeButton.TextScaled = true
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = mainFrame
+
+-- العنوان
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 45)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Text = "Emote Cutter Pro - حفظ دائم"
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
+
+-- حقول الإدخال
+local idBox = Instance.new("TextBox")
+idBox.Size = UDim2.new(0, 160, 0, 40)
+idBox.Position = UDim2.new(0, 10, 0, 55)
+idBox.PlaceholderText = "Animation ID"
+idBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+idBox.TextColor3 = Color3.new(1, 1, 1)
+idBox.TextScaled = true
+idBox.Parent = mainFrame
+
+local sliceBox = Instance.new("TextBox")
+sliceBox.Size = UDim2.new(0, 90, 0, 40)
+sliceBox.Position = UDim2.new(0, 180, 0, 55)
+sliceBox.PlaceholderText = "Slice (s)"
+sliceBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+sliceBox.TextColor3 = Color3.new(1, 1, 1)
+sliceBox.TextScaled = true
+sliceBox.Parent = mainFrame
+
+local addButton = Instance.new("TextButton")
+addButton.Size = UDim2.new(0, 70, 0, 40)
+addButton.Position = UDim2.new(0, 280, 0, 55)
+addButton.Text = "Add"
+addButton.TextScaled = true
+addButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+addButton.TextColor3 = Color3.new(1, 1, 1)
+addButton.Parent = mainFrame
+
+local copyIdBtn = Instance.new("TextButton")
+copyIdBtn.Size = UDim2.new(0, 90, 0, 40)
+copyIdBtn.Position = UDim2.new(1, -100, 0, 55)
+copyIdBtn.Text = "Copy ID"
+copyIdBtn.TextScaled = true
+copyIdBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+copyIdBtn.TextColor3 = Color3.new(1, 1, 1)
+copyIdBtn.Parent = mainFrame
+
+-- شريط البحث
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -20, 0, 40)
+searchBox.Position = UDim2.new(0, 10, 0, 105)
+searchBox.PlaceholderText = "Search by Name/ID..."
+searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+searchBox.TextColor3 = Color3.new(1, 1, 1)
+searchBox.TextScaled = true
+searchBox.Parent = mainFrame
+
+searchBox.Changed:Connect(function(prop)
+    if prop == "Text" then
+        currentSearchFilter = searchBox.Text:lower()
+        updateEmoteList()
+    end
+end)
+
+-- قائمة الإيموت
+local emoteList = Instance.new("ScrollingFrame")
+emoteList.Size = UDim2.new(1, -20, 1, -155)
+emoteList.Position = UDim2.new(0, 10, 0, 155)
+emoteList.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+emoteList.BorderSizePixel = 0
+emoteList.ScrollBarThickness = 8
+emoteList.CanvasSize = UDim2.new(0, 0, 0, 0)
+emoteList.Parent = mainFrame
+
+-- تشغيل الإيموت
+local function playAnimationPart(id, startTime, endTime, loop, speed)
+    if not currentHumanoid then return end
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://" .. id
+    local track = currentHumanoid:LoadAnimation(anim)
+    animTracks[id] = track
+    track:Play()
+    track.TimePosition = startTime or 0
+    track:AdjustSpeed(speed or 1)
+    local duration = (endTime or track.Length) - (startTime or 0)
+    if loop then
+        task.spawn(function()
+            while track.IsPlaying do
+                task.wait(duration)
+                track.TimePosition = startTime or 0
+            end
+        end)
+    else
+        task.delay(duration, function()
+            if track.IsPlaying then track:Stop() end
+        end)
+    end
+end
+
+local function stopAnimation(id)
+    if animTracks[id] then
+        animTracks[id]:Stop()
+        animTracks[id] = nil
+    end
+end
+
+local function stopAllAnimations()
+    for id, track in pairs(animTracks) do
+        pcall(function() track:Stop() end)
+    end
+    animTracks = {}
+    if previewTrack then previewTrack:Stop() previewTrack = nil end
+end
+
+-- تأكيد الحذف
+local deleteConfirm = Instance.new("Frame")
+deleteConfirm.Size = UDim2.new(0, 280, 0, 140)
+deleteConfirm.Position = UDim2.new(0.5, -140, 0.5, -70)
+deleteConfirm.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+deleteConfirm.Visible = false
+deleteConfirm.ZIndex = 100
+deleteConfirm.Parent = screenGui
+
+local delLabel = Instance.new("TextLabel", deleteConfirm)
+delLabel.Size = UDim2.new(1, -20, 0.4, 0)
+delLabel.Position = UDim2.new(0, 10, 0, 10)
+delLabel.BackgroundTransparency = 1
+delLabel.TextColor3 = Color3.new(1, 1, 1)
+delLabel.TextScaled =/m true
+delLabel.Text = "تأكيد الحذف؟"
+
+local yesDel = Instance.new("TextButton", deleteConfirm)
+yesDel.Size = UDim2.new(0, 110, 0, 40)
+yesDel.Position = UDim2.new(0, 20, 0.6, 0)
+yesDel.Text = "نعم"
+yesDel.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+yesDel.TextColor3 = Color3.new(1, 1, 1)
+yesDel.TextScaled = true
+
+local noDel = Instance.new("TextButton", deleteConfirm)
+noDel.Size = UDim2.new(0, 110, 0, 40)
+noDel.Position = UDim2.new(1, -140, 0.6, 0)
+noDel.Text = "لا"
+noDel.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+noDel.TextColor3 = Color3.new(1, 1, 1)
+noDel.TextScaled = true
+
+local function showDelete(name, data)
+    delLabel.Text = "حذف '" .. name .. "'؟"
+    deleteConfirm.Visible = true
+    local yConn = yesDel.MouseButton1Click:Connect(function()
+        emotes[name] = nil
+        saveEmotes()
+        stopAnimation(data.id)
+        updateEmoteList()
+        deleteConfirm.Visible = false
+        yConn:Disconnect()
+        nConn:Disconnect()
+    end)
+    local nConn = noDel.MouseButton1Click:Connect(function()
+        deleteConfirm.Visible = false
+        yConn:Disconnect()
+        nConn:Disconnect()
+    end)
+end
+
+-- تحديث القائمة
+function updateEmoteList()
+    for _, child in pairs(emoteList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    local y = 0
+    for name, data in pairs(emotes) do
+        if currentSearchFilter == "" or name:lower():find(currentSearchFilter) or tostring(data.id):find(currentSearchFilter) then
+            local item = Instance.new("Frame")
+            item.Size = UDim2.new(1, 0, 0, 70)
+            item.Position = UDim2.new(0, 0, 0, y)
+            item.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            item.Parent = emoteList
+
+            local nameLbl = Instance.new("TextLabel", item)
+            nameLbl.Size = UDim2.new(0.35, 0, 1, 0)
+            nameLbl.Text = name
+            nameLbl.BackgroundTransparency = 1
+            nameLbl.TextColor3 = Color3.new(1, 1, 1)
+            nameLbl.TextScaled = true
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+            local btnSize = isMobile and 55 or 45
+            local xPos = 0.38
+
+            -- Play
+            local playBtn = Instance.new("TextButton", item)
+            playBtn.Size = UDim2.new(0, btnSize, 0, btnSize)
+            playBtn.Position = UDim2.new(xPos, 0, 0.1, 0)
+            playBtn.Text = "Play"
+            playBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            playBtn.TextScaled = true
+            playBtn.TextColor3 = Color3.new(1, 1, 1)
+            playBtn.MouseButton1Click:Connect(function()
+                playAnimationPart(data.id, data.startTime or 0, data.endTime, false, 1)
+            end)
+
+            -- Loop
+            xPos = xPos + (btnSize + 5)/600
+            local loopBtn = Instance.new("TextButton", item)
+            loopBtn.Size = UDim2.new(0, btnSize, 0, btnSize)
+            loopBtn.Position = UDim2.new(xPos, 0, 0.1, 0)
+            loopBtn.Text = "Loop"
+            loopBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+            loopBtn.TextScaled = true
+            loopBtn.TextColor3 = Color3.new(1, 1, 1)
+            loopBtn.MouseButton1Click:Connect(function()
+                playAnimationPart(data.id, data.startTime or 0, data.endTime, true, 1)
+            end)
+
+            -- Stop
+            xPos = xPos + (btnSize + 5)/600
+            local stopBtn = Instance.new("TextButton", item)
+            stopBtn.Size = UDim2.new(0, btnSize, 0, btnSize)
+            stopBtn.Position = UDim2.new(xPos, 0, 0.1, 0)
+            stopBtn.Text = "Stop"
+            stopBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+            stopBtn.TextScaled = true
+            stopBtn.TextColor3 = Color3.new(1, 1, 1)
+            stopBtn.MouseButton1Click:Connect(function()
+                stopAnimation(data.id)
+            end)
+
+            -- Cut
+            xPos = xPos + (btnSize + 5)/600
+            local cutBtn = Instance.new("TextButton", item)
+            cutBtn.Size = UDim2.new(0, btnSize, 0, btnSize)
+            cutBtn.Position = UDim2.new(xPos, 0, 0.1, 0)
+            cutBtn.Text = "Cut"
+            cutBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+            cutBtn.TextScaled = true
+            cutBtn.TextColor3 = Color3.new(1, 1, 1)
+            cutBtn.MouseButton1Click:Connect(function()
+                currentEditingEmote = data
+                openCutterPanel(name)
+            end)
+
+            -- Delete
+            local delBtn = Instance.new("TextButton", item)
+            delBtn.Size = UDim2.new(0, 60, 0, 60)
+            delBtn.Position = UDim2.new(1, -65, 0, 5)
+            delBtn.Text = "Delete"
+            delBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            delBtn.TextScaled = true
+            delBtn.TextColor3 = Color3.new(1, 1, 1)
+            delBtn.MouseButton1Click:Connect(function()
+                showDelete(name, data)
+            end)
+
+            y = y + 75
+        end
+    end
+    emoteList.CanvasSize = UDim2.new(0, 0, 0, math.max(y, 100))
+end
+
+-- إطار التقطيع
+function openCutterPanel(emoteName)
+    if cutterPanel then cutterPanel:Destroy() end
+
+    cutterPanel = Instance.new("Frame")
+    cutterPanel.Size = isMobile and UDim2.new(0.45, 0, 0.7, 0) or UDim2.new(0, 320, 0, 380)
+    cutterPanel.Position = UDim2.new(1, -330, 0.5, -190)
+    cutterPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    cutterPanel.ZIndex = 20
+    cutterPanel.Parent = screenGui
+
+    local panelTitle = Instance.new("TextLabel")
+    panelTitle.Size = UDim2.new(1, 0, 0, 50)
+    panelTitle.Text = "Cutter: " .. emoteName
+    panelTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    panelTitle.TextColor3 = Color3.new(1, 1, 1)
+    panelTitle.TextScaled = true
+    panelTitle.ZIndex = 21
+    panelTitle.Parent = cutterPanel
+
+    local closePanel = Instance.new("TextButton")
+    closePanel.Size = UDim2.new(0, 35, 0, 35)
+    closePanel.Position = UDim2.new(1, -40, 0, 7)
+    closePanel.Text = "X"
+    closePanel.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closePanel.TextColor3 = Color3.new(1, 1, 1)
+    closePanel.TextScaled = true
+    closePanel.ZIndex = 21
+    closePanel.Parent = cutterPanel
+    closePanel.MouseButton1Click:Connect(function() cutterPanel:Destroy() end)
+
+    local totalLen = 5
+    pcall(function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. currentEditingEmote.id
+        local track = currentHumanoid:LoadAnimation(anim)
+        track:Play()
+        totalLen = track.Length
+        track:Stop()
+    end)
+
+    -- Start Slider
+    local startLabel = Instance.new("TextLabel")
+    startLabel.Size = UDim2.new(0.35, 0, 0, 35)
+    startLabel.Position = UDim2.new(0, 15, 0, 65)
+    startLabel.Text = "Start: 0.00s"
+    startLabel.BackgroundTransparency = 1
+    startLabel.TextColor3 = Color3.new(1, 1, 1)
+    startLabel.TextScaled = true
+    startLabel.ZIndex = 21
+    startLabel.Parent = cutterPanel
+
+    local startSlider = Instance.new("Frame")
+    startSlider.Size = UDim2.new(0.85, 0, 0, 25)
+    startSlider.Position = UDim2.new(0, 20, 0, 105)
+    startSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    startSlider.ZIndex = 21
+    startSlider.Parent = cutterPanel
+
+    local startFill = Instance.new("Frame")
+    startFill.Size = UDim2.new(0, 0, 1, 0)
+    startFill.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    startFill.BorderSizePixel = 0
+    startFill.ZIndex = 22
+    startFill.Parent = startSlider
+
+    local startKnob = Instance.new("TextButton")
+    startKnob.Size = UDim2.new(0, 25, 1, 0)
+    startKnob.Position = UDim2.new(0, -12, 0, 0)
+    startKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+    startKnob.Text = ""
+    startKnob.ZIndex = 23
+    startKnob.Parent = startSlider
+
+    local startTime = 0
+    startKnob.MouseButton1Down:Connect(function() draggingStart = true end)
+    RunService.Heartbeat:Connect(function()
+        if draggingStart then
+            local mouse = player:GetMouse()
+            local rel = math.clamp((mouse.X - startSlider.AbsolutePosition.X) / startSlider.AbsoluteSize.X, 0, 1)
+            startTime = rel * totalLen
+            startFill.Size = UDim2.new(rel, 0, 1, 0)
+            startKnob.Position = UDim2.new(rel, -12, 0, 0)
+            startLabel.Text = "Start: " .. string.format("%.2f", startTime) .. "s"
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingStart = false
+        end
+    end)
+
+    -- End Slider
+    local endLabel = Instance.new("TextLabel")
+    endLabel.Size = UDim2.new(0.35, 0, 0, 35)
+    endLabel.Position = UDim2.new(0, 15, 0, 140)
+    endLabel.Text = "End: " .. string.format("%.2f", totalLen) .. "s"
+    endLabel.BackgroundTransparency = 1
+    endLabel.TextColor3 = Color3.new(1, 1, 1)
+    endLabel.TextScaled = true
+    endLabel.ZIndex = 21
+    endLabel.Parent = cutterPanel
+
+    local endSlider = Instance.new("Frame")
+    endSlider.Size = UDim2.new(0.85, 0, 0, 25)
+    endSlider.Position = UDim2.new(0, 20, 0, 180)
+    endSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    endSlider.ZIndex = 21
+    endSlider.Parent = cutterPanel
+
+    local endFill = Instance.new("Frame")
+    endFill.Size = UDim2.new(1, 0, 1, 0)
+    endFill.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    endFill.BorderSizePixel = 0
+    endFill.ZIndex = 22
+    endFill.Parent = endSlider
+
+    local endKnob = Instance.new("TextButton")
+    endKnob.Size = UDim2.new(0, 25, 1, 0)
+    endKnob.Position = UDim2.new(1, -13, 0, 0)
+    endKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+    endKnob.Text = ""
+    endKnob.ZIndex = 23
+    endKnob.Parent = endSlider
+
+    local endTime = totalLen
+    endKnob.MouseButton1Down:Connect(function() draggingEnd = true end)
+    RunService.Heartbeat:Connect(function()
+        if draggingEnd then
+            local mouse = player:GetMouse()
+            local rel = math.clamp((mouse.X - endSlider.AbsolutePosition.X) / endSlider.AbsoluteSize.X, 0, 1)
+            endTime = rel * totalLen
+            endFill.Size = UDim2.new(rel, 0, 1, 0)
+            endKnob.Position = UDim2.new(rel, -12, 0, 0)
+            endLabel.Text = "End: " .. string.format("%.2f", endTime) .. "s"
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingEnd = false
+        end
+    end)
+
+    -- Preview
+    local previewBtn = Instance.new("TextButton")
+    previewBtn.Size = UDim2.new(0.4, 0, 0, 40)
+    previewBtn.Position = UDim2.new(0, 20, 0, 220)
+    previewBtn.Text = "Preview"
+    previewBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    previewBtn.TextColor3 = Color3.new(1, 1, 1)
+    previewBtn.TextScaled = true
+    previewBtn.ZIndex = 21
+    previewBtn.Parent = cutterPanel
+    previewBtn.MouseButton1Click:Connect(function()
+        if previewTrack then previewTrack:Stop() end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. currentEditingEmote.id
+        previewTrack = currentHumanoid:LoadAnimation(anim)
+        previewTrack:Play()
+        previewTrack.TimePosition = startTime
+        previewTrack:AdjustSpeed(1)
+        task.delay(endTime - startTime, function() if previewTrack then previewTrack:Stop() end end)
+    end)
+
+-- Save Cut
+    local cutNameBox = Instance.new("TextBox")
+    cutNameBox.Size = UDim2.new(0.8, 0, 0, 35)
+    cutNameBox.Position = UDim2.new(0, 20, 0, 270)
+    cutNameBox.PlaceholderText = "اسم التقطيع الجديد"
+    cutNameBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    cutNameBox.TextColor3 = Color3.new(1, 1, 1)
+    cutNameBox.TextScaled = true
+    cutNameBox.ZIndex = 21
+    cutNameBox.Parent = cutterPanel
+
+    local saveCutBtn = Instance.new("TextButton")
+    saveCutBtn.Size = UDim2.new(0.4, 0, 0, 40)
+    saveCutBtn.Position = UDim2.new(0, 20, 0, 315)
+    saveCutBtn.Text = "حفظ التقطيع"
+    saveCutBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+    saveCutBtn.TextColor3 = Color3.new(1, 1, 1)
+    saveCutBtn.TextScaled = true
+    saveCutBtn.ZIndex = 21
+    saveCutBtn.Parent = cutterPanel
+    saveCutBtn.MouseButton1Click:Connect(function()
+        local newName = cutNameBox.Text
+        if newName ~= "" and endTime > startTime then
+            emotes[newName] = {
+                id = currentEditingEmote.id,
+                startTime = startTime,
+                endTime = endTime
+            }
+            saveEmotes()
+            updateEmoteList()
+            cutterPanel:Destroy()
+            print("تم حفظ التقطيع: " .. newName)
+        else
+            print("اسم أو مدة غير صالحة!")
+        end
+    end)
+end
+
+-- تهيئة الشخصية
+local function setupCharacter(char)
+    stopAllAnimations()
+    currentCharacter = char
+    currentHumanoid = char:WaitForChild("Humanoid", 3)
+    if currentHumanoid then
+        currentAnimator = currentHumanoid:FindFirstChildOfClass("Animator")
+        if animPlayedConn then animPlayedConn:Disconnect() end
+        if currentAnimator then
+            animPlayedConn = currentAnimator.AnimationPlayed:Connect(function(track)
+                local id = track.Animation.AnimationId:match("%d+")
+                if id then currentAnimId = id end
+            end)
+        end
+    end
+end
+
+-- أحداث الأزرار
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+copyIdBtn.MouseButton1Click:Connect(function()
+    if currentAnimId and type(setclipboard) == "function" then
+        setclipboard(currentAnimId)
+        print("تم نسخ الـ ID: " .. currentAnimId)
+    end
+end)
+
+addButton.MouseButton1Click:Connect(function()
+    local id = idBox.Text:match("%d+")
+    local slice = tonumber(sliceBox.Text) or 1
+    if not id or slice <= 0 then return end
+    if not currentHumanoid then return end
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://" .. id
+    local track = currentHumanoid:LoadAnimation(anim)
+    track:Play()
+    local totalLen = track.Length
+    track:Stop()
+
+    local index = 1
+    for t = 0, totalLen, slice do
+        local st = t
+        local et = math.min(t + slice, totalLen)
+        local name = id .. "_Slice" .. index
+        emotes[name] = {id = id, startTime = st, endTime = et}
+        index = index + 1
+    end
+    saveEmotes()
+    updateEmoteList()
+    print("تم إضافة " .. (index - 1) .. " أجزاء!")
+end)
+
+-- Stop All
+local stopAllBtn = Instance.new("TextButton")
+stopAllBtn.Size = UDim2.new(0, 100, 0, 40)
+stopAllBtn.Position = UDim2.new(0, 360, 0, 55)
+stopAllBtn.Text = "Stop All"
+stopAllBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+stopAllBtn.TextColor3 = Color3.new(1, 1, 1)
+stopAllBtn.TextScaled = true
+stopAllBtn.Parent = mainFrame
+stopAllBtn.MouseButton1Click:Connect(stopAllAnimations)
+
+-- تحميل أولي
+loadEmotes()
+updateEmoteList()
+
+if player.Character then
+    setupCharacter(player.Character)
+end
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    setupCharacter(char)
+end)
+
+print("تم تحميل Emote Cutter Pro مع الحفظ الدائم!")
