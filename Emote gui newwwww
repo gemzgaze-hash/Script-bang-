@@ -1,0 +1,569 @@
+-- إعداد الخدمات
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- تحديث مستمر للشخصية
+task.spawn(function()
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+
+    player.CharacterAdded:Connect(function(char)
+        character = char
+        humanoid = character:WaitForChild("Humanoid")
+    end)
+
+    while true do
+        if not humanoid or humanoid.Health <= 0 then
+            character = player.Character or player.CharacterAdded:Wait()
+            humanoid = character:WaitForChild("Humanoid")
+        end
+        task.wait(1)
+    end
+end)
+
+-- ملف الحفظ
+local dances = {}
+local saveFile = "رقصاتي.json"
+
+if pcall(function() return readfile end) then
+    if isfile and isfile(saveFile) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(saveFile))
+        end)
+        if success then dances = data end
+    end
+end
+
+local function saveToFile()
+    if pcall(function() return writefile end) and isfile then
+        pcall(function()
+            writefile(saveFile, HttpService:JSONEncode(dances))
+        end)
+    end
+end
+
+-- إنشاء الواجهة
+local function createGUI()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "DanceGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui")
+
+    -- الإطار الرئيسي
+    local main = Instance.new("Frame", gui)
+    main.Position = UDim2.new(0, 10, 0, 50)
+    main.Size = UDim2.new(0, 340, 0, 500)
+    main.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    main.BorderSizePixel = 0
+    main.Active = true
+    main.Draggable = true
+    main.Visible = false
+
+    local corner = Instance.new("UICorner", main)
+    corner.CornerRadius = UDim.new(0, 16)
+
+    local shadow = Instance.new("ImageLabel", main)
+    shadow.Size = UDim2.new(1, 20, 1, 20)
+    shadow.Position = UDim2.new(0, -10, 0, -10)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316045217"
+    shadow.ImageColor3 = Color3.new(0,0,0)
+    shadow.ImageTransparency = 0.65
+    shadow.ZIndex = 0
+
+    -- زر فتح/إغلاق
+    local openBtn = Instance.new("TextButton", gui)
+    openBtn.Size = UDim2.new(0, 110, 0, 36)
+    openBtn.Position = UDim2.new(0, 10, 0, 10)
+    openBtn.Text = "فتح القائمة"
+    openBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    openBtn.TextColor3 = Color3.new(1,1,1)
+    openBtn.Font = Enum.Font.GothamBold
+    openBtn.TextSize = 15
+
+    local openCorner = Instance.new("UICorner", openBtn)
+    openCorner.CornerRadius = UDim.new(0, 12)
+
+    openBtn.MouseButton1Click:Connect(function()
+        main.Visible = not main.Visible
+        TweenService:Create(main, TweenInfo.new(0.3), {Position = main.Visible and UDim2.new(0,10,0,50) or UDim2.new(0,10,0,-500)}):Play()
+    end)
+
+    -- صندوق البحث
+    local searchBox = Instance.new("TextBox", main)
+    searchBox.Position = UDim2.new(0, 12, 0, 12)
+    searchBox.Size = UDim2.new(1, -24, 0, 34)
+    searchBox.PlaceholderText = "ابحث بالاسم..."
+    searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    searchBox.TextColor3 = Color3.new(1,1,1)
+    searchBox.Font = Enum.Font.Gotham
+    searchBox.TextSize = 14
+
+    local searchCorner = Instance.new("UICorner", searchBox)
+    searchCorner.CornerRadius = UDim.new(0, 10)
+
+    -- القائمة
+    local scrolling = Instance.new("ScrollingFrame", main)
+    scrolling.Position = UDim2.new(0, 12, 0, 54)
+    scrolling.Size = UDim2.new(1, -24, 0, 210)
+    scrolling.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    scrolling.ScrollBarThickness = 6
+    scrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+    local scrollCorner = Instance.new("UICorner", scrolling)
+    scrollCorner.CornerRadius = UDim.new(0, 10)
+
+    local layout = Instance.new("UIListLayout", scrolling)
+    layout.Padding = UDim.new(0, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- دالة إنشاء زر صغير
+    local btnH = 28
+    local function createBtn(text, pos, color, sizeW)
+        local btn = Instance.new("TextButton", main)
+        btn.Position = pos
+        btn.Size = UDim2.new(0, sizeW or 52, 0, btnH)
+        btn.Text = text
+        btn.BackgroundColor3 = color
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 12
+
+        local corner = Instance.new("UICorner", btn)
+        corner.CornerRadius = UDim.new(0, 8)
+
+        btn.MouseButton1Down:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = color:lerp(Color3.new(0,0,0), 0.3)}):Play()
+        end)
+        btn.MouseButton1Up:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = color}):Play()
+        end)
+
+        return btn
+    end
+
+    -- بداية الأزرار (y = 270)
+    local y = 270
+
+    -- صف 1: ID + أزرار تشغيل
+    local idBox = Instance.new("TextBox", main)
+    idBox.Position = UDim2.new(0, 12, 0, y)
+    idBox.Size = UDim2.new(0, 128, 0, btnH)
+    idBox.PlaceholderText = "ID"
+    idBox.BackgroundColor3 = Color3.fromRGB(55,55,70)
+    idBox.TextColor3 = Color3.new(1,1,1)
+    idBox.Font = Enum.Font.Gotham
+    idBox.TextSize = 12
+    local idCorner = Instance.new("UICorner", idBox); idCorner.CornerRadius = UDim.new(0,8)
+
+    local playBtn = createBtn("▶️", UDim2.new(0, 146, 0, y), Color3.fromRGB(60,120,60), 48)
+    local stopAllBtn = createBtn("⛔", UDim2.new(0, 200, 0, y), Color3.fromRGB(160,50,50), 48)
+    local executeBtn = createBtn("رحمه", UDim2.new(0, 254, 0, y), Color3.fromRGB(130,90,170), 64)
+
+    y = y + 34
+
+    -- صف 2: سرعة + تطبيق + نسخ ID
+    local speedBox = Instance.new("TextBox", main)
+    speedBox.Position = UDim2.new(0, 12, 0, y)
+    speedBox.Size = UDim2.new(0, 128, 0, btnH)
+    speedBox.PlaceholderText = "سرعة"
+    speedBox.BackgroundColor3 = Color3.fromRGB(55,55,70)
+    speedBox.TextColor3 = Color3.new(1,1,1)
+    speedBox.Font = Enum.Font.Gotham
+    speedBox.TextSize = 12
+    local spCorner = Instance.new("UICorner", speedBox); spCorner.CornerRadius = UDim.new(0,8)
+
+    local applySpeedBtn = createBtn("تطبيق", UDim2.new(0, 146, 0, y), Color3.fromRGB(60,110,110), 54)
+    local copyIdBtn = createBtn("ID", UDim2.new(0, 206, 0, y), Color3.fromRGB(90,90,140), 48)
+
+    y = y + 34
+
+    -- صف 3: سبام + لوب + أزرار
+    local spamSpeedBox = Instance.new("TextBox", main)
+    spamSpeedBox.Position = UDim2.new(0, 12, 0, y)
+    spamSpeedBox.Size = UDim2.new(0, 70, 0, btnH)
+    spamSpeedBox.PlaceholderText = "سبام"
+    spamSpeedBox.Text = "0.05"
+    spamSpeedBox.BackgroundColor3 = Color3.fromRGB(55,55,70)
+    spamSpeedBox.TextColor3 = Color3.new(1,1,1)
+    spamSpeedBox.Font = Enum.Font.Gotham
+    spamSpeedBox.TextSize = 12
+    local ssCorner = Instance.new("UICorner", spamSpeedBox); ssCorner.CornerRadius = UDim.new(0,8)
+
+    local loopSpeedBox = Instance.new("TextBox", main)
+    loopSpeedBox.Position = UDim2.new(0, 88, 0, y)
+    loopSpeedBox.Size = UDim2.new(0, 70, 0, btnH)
+    loopSpeedBox.PlaceholderText = "لوب"
+    loopSpeedBox.Text = "1.5"
+    loopSpeedBox.BackgroundColor3 = Color3.fromRGB(55,55,70)
+    loopSpeedBox.TextColor3 = Color3.new(1,1,1)
+    loopSpeedBox.Font = Enum.Font.Gotham
+    loopSpeedBox.TextSize = 12
+    local lsCorner = Instance.new("UICorner", loopSpeedBox); lsCorner.CornerRadius = UDim.new(0,8)
+
+    local loopBtn = createBtn("🔁 لوب", UDim2.new(0, 164, 0, y), Color3.fromRGB(80,140,80), 58)
+    local spamBtn = createBtn("⚡ سبام", UDim2.new(0, 228, 0, y), Color3.fromRGB(180,120,60), 58)
+
+    y = y + 34
+
+    -- صف 4: تجميد + حفظ مجموعة
+    local freezeBtn = createBtn("تجميد الكل", U  UDim2.new(0, 12, 0, y), Color3.fromRGB(85,85,95), 120)
+    local saveGroupBtn = createBtn("مجموعة", UDim2.new(0, 250, 0, y), Color3.fromRGB(110,80,40), 66)
+
+    -- أزرار سفلية
+    local freezeSingleBtn = createBtn("واحد", UDim2.new(1, -150, 1, -36), Color3.fromRGB(85,85,95), 48)
+    local animBtn = createBtn("—", UDim2.new(1, -210, 1, -36), Color3.fromRGB(90,90,140), 48)
+    local saveBtn = createBtn("حفظ", UDim2.new(1, -90, 1, -36), Color3.fromRGB(110,110,40), 48)
+
+    local scrollDown = createBtn("⬇️", UDim2.new(1, -36, 1, -36), Color3.fromRGB(60,60,70), 30)
+    local scrollUp = createBtn("⬆️", UDim2.new(1, -36, 1, -70), Color3.fromRGB(60,60,70), 30)
+
+    -- متغيرات النظام
+    local activeTracks = {}
+    local currentAnimId = nil
+    local currentTrack = nil
+    local scrollingFlag = false
+    local scrollSpeed = 12
+
+    -- سكرول
+    local function startScroll(direction)
+        scrollingFlag = true
+        while scrollingFlag do
+            scrolling.CanvasPosition = scrolling.CanvasPosition + Vector2.new(0, scrollSpeed * direction)
+            task.wait()
+        end
+    end
+    scrollDown.MouseButton1Down:Connect(function() startScroll(1) end)
+    scrollDown.MouseButton1Up:Connect(function() scrollingFlag = false end)
+    scrollUp.MouseButton1Down:Connect(function() startScroll(-1) end)
+    scrollUp.MouseButton1Up:Connect(function() scrollingFlag = false end)
+
+    -- تنفيذ السكربت
+    executeBtn.MouseButton1Click:Connect(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script", true))()
+    end)
+
+    -- دوال الأنيميشن
+    local function getAnimator()
+        humanoid = (player.Character or player.CharacterAdded:Wait()):WaitForChild("Humanoid")
+        return humanoid:WaitForChild("Animator")
+    end
+
+    local function refreshActiveAnimator()
+        currentTrack = nil
+        for _, track in ipairs(activeTracks) do track:Stop() end
+        activeTracks = {}
+    end
+
+    local function playAnimation(animId, freezeTime)
+        local animator = getAnimator()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = animId
+        local track = animator:LoadAnimation(anim)
+        track:Play()
+        if freezeTime then track.TimePosition = freezeTime; track:AdjustSpeed(0) end
+        table.insert(activeTracks, track)
+        currentTrack = track
+        currentAnimId = animId
+    end
+
+    -- تتبع الأنيميشن الحالي
+    task.spawn(function()
+        while true do
+            local animator = getAnimator()
+            animator.AnimationPlayed:Connect(function(track)
+                if track and track.Animation and track.Animation.AnimationId then
+                    local id = string.match(track.Animation.AnimationId, "%d+")
+                    if id then
+                        currentAnimId = id
+                        animBtn.Text = id
+                    end
+                end
+            end)
+            task.wait(5)
+        end
+    end)
+
+    animBtn.MouseButton1Click:Connect(function()
+        if currentTrack then
+            if currentTrack.IsPlaying then
+                currentTrack:Stop()
+                animBtn.Text = "▶️"
+            else
+                currentTrack:Play()
+                animBtn.Text = "⏸️"
+            end
+        end
+    end)
+
+    playBtn.MouseButton1Click:Connect(function()
+        playAnimation("rbxassetid://" .. idBox.Text)
+    end)
+
+    stopAllBtn.MouseButton1Click:Connect(function()
+        refreshActiveAnimator()
+    end)
+
+    applySpeedBtn.MouseButton1Click:Connect(function()
+        local speed = tonumber(speedBox.Text) or 1
+        for _, track in ipairs(activeTracks) do
+            if track then track:AdjustSpeed(speed) end
+        end
+    end)
+
+    freezeBtn.MouseButton1Click:Connect(function()
+        for _, track in ipairs(activeTracks) do if track.IsPlaying then track:AdjustSpeed(0) end end
+    end)
+
+    freezeSingleBtn.MouseButton1Click:Connect(function()
+        if currentTrack and currentTrack.IsPlaying then currentTrack:AdjustSpeed(0) end
+    end)
+
+    copyIdBtn.MouseButton1Click:Connect(function()
+        if currentAnimId and setclipboard then setclipboard(currentAnimId) end
+    end)
+
+    -- === اللوب والسبام ===
+    local isLooping = false
+    local isSpamming = false
+
+    local function getCurrentId()
+        local id = idBox.Text
+        return id ~= "" and ("rbxassetid://" .. id) or nil
+    end
+
+    local function stopAllLoopsAndSpam()
+        isLooping = false
+        isSpamming = false
+        refreshActiveAnimator()
+        loopBtn.Text = "🔁 لوب"
+        spamBtn.Text = "⚡ سبام"
+    end
+
+    loopBtn.MouseButton1Click:Connect(function()
+        local animId = getCurrentId()
+        if not animId then return end
+
+        if isLooping then
+            stopAllLoopsAndSpam()
+        else
+            stopAllLoopsAndSpam()
+            isLooping = true
+            loopBtn.Text = "⏹️ لوب"
+            task.spawn(function()
+                while isLooping do
+                    playAnimation(animId)
+                    task.wait(tonumber(loopSpeedBox.Text) or 1.5)
+                end
+            end)
+        end
+    end)
+
+    spamBtn.MouseButton1Click:Connect(function()
+        local animId = getCurrentId()
+        if not animId then return end
+
+        if isSpamming then
+            stopAllLoopsAndSpam()
+        else
+            stopAllLoopsAndSpam()
+            isSpamming = true
+            spamBtn.Text = "⏹️ سبام"
+            task.spawn(function()
+                while isSpamming do
+                    playAnimation(animId)
+                    task.wait(tonumber(spamSpeedBox.Text) or 0.05)
+                end
+            end)
+        end
+    end)
+
+    -- تحديث stopAllBtn ليشمل اللوب والسبام
+    local oldStopAll = stopAllBtn.MouseButton1Click
+    stopAllBtn.MouseButton1Click = function()
+        stopAllLoopsAndSpam()
+        oldStopAll()
+    end
+
+    -- تحديث القائمة
+    local function refreshList(filter)
+        for _, child in ipairs(scrolling:GetChildren()) do
+            if child:IsA("Frame") then child:Destroy() end
+        end
+
+        for i, item in ipairs(dances) do
+            local name = item.Name:lower()
+            local query = filter and filter:lower() or ""
+
+            if query == "" or name:sub(1, #query) == query then
+                local frame = Instance.new("Frame", scrolling)
+                frame.Size = UDim2.new(1, -10, 0, 38)
+                frame.BackgroundColor3 = Color3.fromRGB(50,50,70)
+
+                local fcorner = Instance.new("UICorner", frame)
+                fcorner.CornerRadius = UDim.new(0, 8)
+
+                local nameBtn = Instance.new("TextButton", frame)
+                nameBtn.Size = UDim2.new(0.5, -5, 1, 0)
+                nameBtn.Position = UDim2.new(0, 5, 0, 0)
+                nameBtn.Text = item.Name
+                nameBtn.BackgroundColor3 = Color3.fromRGB(75,75,95)
+                nameBtn.TextColor3 = Color3.new(1,1,1)
+                nameBtn.Font = Enum.Font.Gotham
+                nameBtn.TextSize = 13
+
+                local ncorner = Instance.new("UICorner", nameBtn)
+                ncorner.CornerRadius = UDim.new(0, 6)
+
+                nameBtn.MouseButton1Click:Connect(function()
+                    refreshActiveAnimator()
+                    if item.IsGroup then
+                        for _, animData in ipairs(item.Animations) do
+                            playAnimation(animData.ID, animData.FreezeTime)
+                        end
+                    else
+                        playAnimation(item.AnimationId, item.FreezeTime)
+                        local idNumber = string.match(item.AnimationId, "%d+")
+                        if idNumber then idBox.Text = idNumber end
+                    end
+                end)
+
+                -- إعادة تسمية
+                local renameBtn = Instance.new("TextButton", frame)
+                renameBtn.Size = UDim2.new(0.2, -5, 1, 0)
+                renameBtn.Position = UDim2.new(0.5, 5, 0, 0)
+                renameBtn.Text = "✏️"
+                renameBtn.BackgroundColor3 = Color3.fromRGB(75,75,110)
+                local rcorner = Instance.new("UICorner", renameBtn); rcorner.CornerRadius = UDim.new(0,6)
+
+                renameBtn.MouseButton1Click:Connect(function()
+                    local inputGui = Instance.new("ScreenGui", player.PlayerGui)
+                    local bg = Instance.new("Frame", inputGui)
+                    bg.Size = UDim2.new(0,300,0,150); bg.Position = UDim2.new(0.5,-150,0.5,-75)
+                    bg.BackgroundColor3 = Color3.fromRGB(45,45,55); local bc = Instance.new("UICorner", bg); bc.CornerRadius = UDim.new(0,12)
+
+                    local title = Instance.new("TextLabel", bg)
+                    title.Size = UDim2.new(1,0,0,30); title.Position = UDim2.new(0,0,0,10)
+                    title.Text = "أدخل الاسم الجديد:"; title.BackgroundTransparency = 1; title.TextColor3 = Color3.new(1,1,1)
+                    title.Font = Enum.Font.GothamBold
+
+                    local inputBox = Instance.new("TextBox", bg)
+                    inputBox.Size = UDim2.new(0,260,0,30); inputBox.Position = UDim2.new(0.5,-130,0,50)
+                    inputBox.Text = item.Name; inputBox.BackgroundColor3 = Color3.fromRGB(35,35,45)
+                    inputBox.TextColor3 = Color3.new(1,1,1); local ic = Instance.new("UICorner", inputBox); ic.CornerRadius = UDim.new(0,8)
+                    inputBox:CaptureFocus()
+
+                    local confirm = createBtn("تأكيد", UDim2.new(0.5,-110,0,100), Color3.fromRGB(60,120,60), 100); confirm.Parent = bg
+                    local cancel = createBtn("إلغاء", UDim2.new(0.5,10,0,100), Color3.fromRGB(140,60,60), 100); cancel.Parent = bg
+
+                    confirm.MouseButton1Click:Connect(function()
+                        if inputBox.Text ~= "" then
+                            item.Name = inputBox.Text
+                            nameBtn.Text = inputBox.Text
+                            saveToFile()
+                            refreshList(searchBox.Text)
+                        end
+                        inputGui:Destroy()
+                    end)
+                    cancel.MouseButton1Click:Connect(function() inputGui:Destroy() end)
+                    inputBox.FocusLost:Connect(function(enter)
+                        if enter and inputBox.Text ~= "" then
+                            item.Name = inputBox.Text
+                            nameBtn.Text = inputBox.Text
+                            saveToFile()
+                            refreshList(searchBox.Text)
+                            inputGui:Destroy()
+                        end
+                    end)
+                end)
+
+                -- حذف
+                local deleteBtn = Instance.new("TextButton", frame)
+                deleteBtn.Size = UDim2.new(0.2, -5, 1, 0)
+                deleteBtn.Position = UDim2.new(0.7, 5, 0, 0)
+                deleteBtn.Text = "🗑️"
+                deleteBtn.BackgroundColor3 = Color3.fromRGB(140,70,70)
+                local dc = Instance.new("UICorner", deleteBtn); dc.CornerRadius = UDim.new(0,6)
+
+                deleteBtn.MouseButton1Click:Connect(function()
+                    table.remove(dances, i)
+                    saveToFile()
+                    refreshList(searchBox.Text)
+                end)
+            end
+        end
+    end
+
+    saveBtn.MouseButton1Click:Connect(function()
+        if currentTrack then
+            local name = "رقصة " .. #dances + 1
+            table.insert(dances, {
+                Name = name,
+                IsGroup = true,
+                Animations = {{ID = currentTrack.Animation.AnimationId, FreezeTime = currentTrack.TimePosition}}
+            })
+            saveToFile()
+            refreshList(searchBox.Text)
+        end
+    end)
+
+    saveGroupBtn.MouseButton1Click:Connect(function()
+        if #activeTracks > 0 then
+            local groupAnimations = {}
+            for _, track in ipairs(activeTracks) do
+                table.insert(groupAnimations, {ID = track.Animation.AnimationId, FreezeTime = track.TimePosition})
+            end
+            table.insert(dances, {
+                    Name = name,
+                IsGroup = true,
+                Animations = {{ID = currentTrack.Animation.AnimationId, FreezeTime = currentTrack.TimePosition}}
+            })
+            saveToFile()
+            refreshList(searchBox.Text)
+        end
+    end)
+
+    saveGroupBtn.MouseButton1Click:Connect(function()
+        if #activeTracks > 0 then
+            local groupAnimations = {}
+            for _, track in ipairs(activeTracks) do
+                table.insert(groupAnimations, {ID = track.Animation.AnimationId, FreezeTime = track.TimePosition})
+            end
+            table.insert(dances, {
+            Name = name,
+                IsGroup = true,
+                Animations = {{ID = currentTrack.Animation.AnimationId, FreezeTime = currentTrack.TimePosition}}
+            })
+            saveToFile()
+            refreshList(searchBox.Text)
+        end
+    end)
+
+    saveGroupBtn.MouseButton1Click:Connect(function()
+        if #activeTracks > 0 then
+            local groupAnimations = {}
+            for _, track in ipairs(activeTracks) do
+                table.insert(groupAnimations, {ID = track.Animation.AnimationId, FreezeTime = track.TimePosition})
+            end
+            table.insert(dances, {Name = "مجموعة رقصات " .. #dances + 1, IsGroup = true, Animations = groupAnimations})
+            saveToFile()
+            refreshList(searchBox.Text)
+        end
+    end)
+
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        refreshList(searchBox.Text)
+    end)
+
+    refreshList()
+    return main
+end
+
+local mainFrame = createGUI()
+print("تم تحميل واجهة الرقصات بنجاح! اللوب والسبام جاهزين + ترتيب مثالي")
