@@ -1,0 +1,284 @@
+-- Emote GUI (Mobile Mini + Loop Protection + Delete Confirm)
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local jsonFile = "emotes_data.json"
+local emotes = {}
+local animTracks = {}
+local loopingEmotes = {}
+local currentAnimId = nil
+
+local currentCharacter, currentHumanoid, currentAnimator
+local animPlayedConn
+local currentSearchFilter = ""
+
+-- ===== تحميل / حفظ =====
+local function loadEmotes()
+	if type(isfile) == "function" and isfile(jsonFile) then
+		local ok, data = pcall(function()
+			return HttpService:JSONDecode(readfile(jsonFile))
+		end)
+		emotes = (ok and type(data) == "table") and data or {}
+	end
+end
+
+local function saveEmotes()
+	if type(writefile) == "function" then
+		pcall(function()
+			writefile(jsonFile, HttpService:JSONEncode(emotes))
+		end)
+	end
+end
+
+-- ===== تنظيف GUI قديم =====
+local old = player.PlayerGui:FindFirstChild("EmoteGui")
+if old then old:Destroy() end
+
+-- ===== GUI =====
+local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+screenGui.Name = "EmoteGui"
+screenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0,320,0,270)
+mainFrame.Position = UDim2.new(0.5,-160,0.5,-135)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+local toggleButton = Instance.new("TextButton", screenGui)
+toggleButton.Size = UDim2.new(0,85,0,30)
+toggleButton.Position = UDim2.new(0,10,0.5,-15)
+toggleButton.Text = "Menu"
+toggleButton.TextSize = 12
+toggleButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Active = true
+toggleButton.Draggable = true
+
+-- ===== Inputs =====
+local idBox = Instance.new("TextBox", mainFrame)
+idBox.Size = UDim2.new(0,120,0,24)
+idBox.Position = UDim2.new(0,10,0,8)
+idBox.PlaceholderText = "Anim ID"
+idBox.TextSize = 12
+idBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+idBox.TextColor3 = Color3.new(1,1,1)
+
+local sliceBox = Instance.new("TextBox", mainFrame)
+sliceBox.Size = UDim2.new(0,70,0,24)
+sliceBox.Position = UDim2.new(0,135,0,8)
+sliceBox.PlaceholderText = "Slice"
+sliceBox.TextSize = 12
+sliceBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+sliceBox.TextColor3 = Color3.new(1,1,1)
+
+local speedBox = Instance.new("TextBox", mainFrame)
+speedBox.Size = UDim2.new(0,50,0,24)
+speedBox.Position = UDim2.new(0,210,0,8)
+speedBox.PlaceholderText = "Spd"
+speedBox.TextSize = 12
+speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+speedBox.TextColor3 = Color3.new(1,1,1)
+
+local addButton = Instance.new("TextButton", mainFrame)
+addButton.Size = UDim2.new(0,40,0,24)
+addButton.Position = UDim2.new(0,265,0,8)
+addButton.Text = "+"
+addButton.TextSize = 14
+addButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+addButton.TextColor3 = Color3.new(1,1,1)
+
+local animBtn = Instance.new("TextButton", mainFrame)
+animBtn.Size = UDim2.new(0,40,0,24)
+animBtn.Position = UDim2.new(0,265,0,38)
+animBtn.Text = "ID"
+animBtn.TextSize = 12
+animBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+animBtn.TextColor3 = Color3.new(1,1,1)
+
+-- ===== Search =====
+local searchBox = Instance.new("TextBox", mainFrame)
+searchBox.Size = UDim2.new(1,-20,0,24)
+searchBox.Position = UDim2.new(0,10,0,38)
+searchBox.PlaceholderText = "Search..."
+searchBox.TextSize = 12
+searchBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+searchBox.TextColor3 = Color3.new(1,1,1)
+searchBox.ClearTextOnFocus = false
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	currentSearchFilter = searchBox.Text:lower()
+	updateEmoteList()
+end)
+
+-- ===== List =====
+local emoteList = Instance.new("ScrollingFrame", mainFrame)
+emoteList.Size = UDim2.new(1,-20,1,-70)
+emoteList.Position = UDim2.new(0,10,0,70)
+emoteList.ScrollBarThickness = 6
+emoteList.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+-- ===== Animation Logic (Loop Protection) =====
+local function playAnimationPart(animId, startTime, endTime, loop, speed)
+	if not currentHumanoid then return end
+	if loop and loopingEmotes[animId] then return end
+	local anim = Instance.new("Animation")
+	anim.AnimationId = "rbxassetid://"..animId
+	local track = currentHumanoid:LoadAnimation(anim)
+	animTracks[animId] = track
+	track:Play()
+	track.TimePosition = startTime or 0
+	track:AdjustSpeed(speed or 1)
+	if loop then loopingEmotes[animId] = true end
+	local len = (endTime or track.Length) - (startTime or 0)
+	task.spawn(function()
+		while loop and loopingEmotes[animId] and track.IsPlaying do
+			task.wait(len)
+			track.TimePosition = startTime or 0
+		end
+	end)
+	track.Stopped:Connect(function()
+		animTracks[animId] = nil
+		loopingEmotes[animId] = nil
+	end)
+end
+
+local function stopAnimation(id)
+	if animTracks[id] then animTracks[id]:Stop() end
+	animTracks[id] = nil
+	loopingEmotes[id] = nil
+end
+
+local function stopAllAnimations()
+	for id,t in pairs(animTracks) do
+		if t then t:Stop() end
+		loopingEmotes[id] = nil
+	end
+	animTracks = {}
+end
+
+-- ===== Delete Confirmation Frame =====
+local deleteConfirmFrame = Instance.new("Frame", mainFrame)
+deleteConfirmFrame.Size = UDim2.new(0,200,0,90)
+deleteConfirmFrame.Position = UDim2.new(0.5,-100,0.5,-45)
+deleteConfirmFrame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+deleteConfirmFrame.Visible = false
+deleteConfirmFrame.Active = true
+
+local confirmLabel = Instance.new("TextLabel", deleteConfirmFrame)
+confirmLabel.Size = UDim2.new(1,-20,0,30)
+confirmLabel.Position = UDim2.new(0,10,0,10)
+confirmLabel.BackgroundTransparency = 1
+confirmLabel.TextColor3 = Color3.new(1,1,1)
+confirmLabel.TextScaled = true
+
+local yesButton = Instance.new("TextButton", deleteConfirmFrame)
+yesButton.Size = UDim2.new(0,70,0,30)
+yesButton.Position = UDim2.new(0,20,0,50)
+yesButton.Text = "Yes"
+yesButton.BackgroundColor3 = Color3.fromRGB(180,60,60)
+yesButton.TextColor3 = Color3.new(1,1,1)
+
+local noButton = Instance.new("TextButton", deleteConfirmFrame)
+noButton.Size = UDim2.new(0,70,0,30)
+noButton.Position = UDim2.new(1,-90,0,50)
+noButton.Text = "No"
+noButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+noButton.TextColor3 = Color3.new(1,1,1)
+
+local function showDeleteConfirmation(emoteName)
+	confirmLabel.Text = "Delete '"..emoteName.."'?"
+	deleteConfirmFrame.Visible = true
+	local yesConn, noConn
+	local function cleanup()
+		if yesConn then yesConn:Disconnect() end
+		if noConn then noConn:Disconnect() end
+		deleteConfirmFrame.Visible = false
+	end
+	yesConn = yesButton.MouseButton1Click:Connect(function()
+		emotes[emoteName] = nil
+		saveEmotes()
+		updateEmoteList()
+		cleanup()
+	end)
+	noConn = noButton.MouseButton1Click:Connect(cleanup)
+end
+
+-- ===== Update List =====
+function updateEmoteList()
+	for _,c in pairs(emoteList:GetChildren()) do
+		if c:IsA("Frame") then c:Destroy() end
+	end
+
+	local y = 0
+	for name,data in pairs(emotes) do
+		if currentSearchFilter == "" 
+		or name:lower():find(currentSearchFilter,1,true)
+		or tostring(data.id):find(currentSearchFilter,1,true) then
+
+			local item = Instance.new("Frame", emoteList)
+			item.Size = UDim2.new(1,0,0,40)
+			item.Position = UDim2.new(0,0,0,y)
+			item.BackgroundColor3 = Color3.fromRGB(45,45,45)
+
+			local label = Instance.new("TextLabel", item)
+			label.Size = UDim2.new(0.25,0,1,0)
+			label.Text = name
+			label.TextSize = 12
+			label.BackgroundTransparency = 1
+			label.TextColor3 = Color3.new(1,1,1)
+
+			local function mkBtn(txt,x,fn)
+				local b = Instance.new("TextButton", item)
+				b.Size = UDim2.new(0,26,1,0)
+				b.Position = UDim2.new(x,0,0,0)
+				b.Text = txt
+				b.TextSize = 12
+				b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+				b.TextColor3 = Color3.new(1,1,1)
+				b.MouseButton1Click:Connect(fn)
+			end
+
+			mkBtn("▶",0.25,function() playAnimationPart(data.id,data.startTime,data.endTime,false,tonumber(speedBox.Text) or 1) end)
+			mkBtn("🔁",0.33,function() playAnimationPart(data.id,data.startTime,data.endTime,true,tonumber(speedBox.Text) or 1) end)
+			mkBtn("■",0.41,function() stopAnimation(data.id) end)
+			mkBtn("ALL",0.49,stopAllAnimations)
+			mkBtn("DEL",0.57,function() showDeleteConfirmation(name) end)
+
+			y += 42
+		end
+	end
+	emoteList.CanvasSize = UDim2.new(0,0,0,y)
+end
+
+-- ===== Character Setup =====
+local function setupCharacter(char)
+	currentCharacter = char
+	currentHumanoid = char:WaitForChild("Humanoid")
+	currentAnimator = currentHumanoid:WaitForChild("Animator")
+
+	if animPlayedConn then animPlayedConn:Disconnect() end
+	animPlayedConn = currentAnimator.AnimationPlayed:Connect(function(track)
+		local id = track.Animation.AnimationId:match("%d+")
+		if id then
+			currentAnimId = id
+			animBtn.Text = id
+		end
+	end)
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
+
+animBtn.MouseButton1Click:Connect(function()
+	if currentAnimId and setclipboard then setclipboard(currentAnimId) end
+end)
+
+loadEmotes()
+updateEmoteList()
+
+if player.Character then setupCharacter(player.Character) end
+player.CharacterAdded:Connect(setupCharacter)
