@@ -1,5 +1,6 @@
 local TweenService = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 
 local ScreenGui = Instance.new("ScreenGui")
 local OpenButton = Instance.new("TextButton")
@@ -14,16 +15,16 @@ ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
 -- ============================================
--- NEON PURPLE COLORS
+-- COLORS
 -- ============================================
-local NEON_PURPLE = Color3.fromRGB(138, 43, 226) -- #8A2BE2
-local DARK_PURPLE = Color3.fromRGB(75, 0, 130)  -- Indigo
+local NEON_PURPLE = Color3.fromRGB(138, 43, 226)
+local DARK_PURPLE = Color3.fromRGB(75, 0, 130)
 local LIGHT_PURPLE = Color3.fromRGB(200, 100, 255)
 local BLACK_TRANSPARENT = Color3.fromRGB(15, 15, 25)
 local WHITE = Color3.new(1, 1, 1)
 
 -- ============================================
--- HELPER: Create UICorner
+-- HELPERS
 -- ============================================
 local function addCorner(parent, radius)
 	local corner = Instance.new("UICorner")
@@ -32,9 +33,6 @@ local function addCorner(parent, radius)
 	return corner
 end
 
--- ============================================
--- HELPER: Create Glowing UIStroke
--- ============================================
 local function addGlowStroke(parent, thickness, color)
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = thickness or 2
@@ -42,7 +40,6 @@ local function addGlowStroke(parent, thickness, color)
 	stroke.Transparency = 0.3
 	stroke.Parent = parent
 	
-	-- Glow effect using shadow/blur simulation
 	local shadow = Instance.new("UIStroke")
 	shadow.Thickness = (thickness or 2) + 1
 	shadow.Color = color or NEON_PURPLE
@@ -52,9 +49,6 @@ local function addGlowStroke(parent, thickness, color)
 	return stroke, shadow
 end
 
--- ============================================
--- HELPER: Create Glassmorphism Effect
--- ============================================
 local function applyGlassmorphism(parent, bgColor)
 	parent.BackgroundColor3 = bgColor or DARK_PURPLE
 	parent.BackgroundTransparency = 0.15
@@ -62,9 +56,6 @@ local function applyGlassmorphism(parent, bgColor)
 	addCorner(parent, 12)
 end
 
--- ============================================
--- ANIMATED STARS BACKGROUND
--- ============================================
 local function createStarField(parent)
 	local starContainer = Instance.new("Frame")
 	starContainer.Parent = parent
@@ -73,18 +64,17 @@ local function createStarField(parent)
 	starContainer.BackgroundTransparency = 1
 	starContainer.ZIndex = 1
 	
-	local starCount = 30
+	local starCount = 15
 	for i = 1, starCount do
 		local star = Instance.new("Frame")
 		star.Parent = starContainer
-		star.Size = UDim2.new(0, math.random(1, 3), 0, math.random(1, 3))
+		star.Size = UDim2.new(0, math.random(1, 2), 0, math.random(1, 2))
 		star.Position = UDim2.new(math.random(0, 100) / 100, 0, math.random(0, 100) / 100, 0)
 		star.BackgroundColor3 = WHITE
 		star.BorderSizePixel = 0
 		
-		addCorner(star, 2)
+		addCorner(star, 1)
 		
-		-- Tween animation for twinkling effect
 		local tweenInfo = TweenInfo.new(
 			math.random(2, 4),
 			Enum.EasingStyle.Sine,
@@ -99,7 +89,7 @@ local function createStarField(parent)
 end
 
 -- ============================================
--- GALAXY BACKGROUND IMAGE
+-- GALAXY BACKGROUND
 -- ============================================
 local galaxyBg = Instance.new("ImageLabel")
 galaxyBg.Parent = ScreenGui
@@ -111,55 +101,84 @@ galaxyBg.ImageTransparency = 0.7
 galaxyBg.ZIndex = 0
 
 -- ============================================
--- OPEN BUTTON (Circular with Neon Purple)
+-- OPEN BUTTON (Draggable, Smaller, Mobile/PC)
 -- ============================================
 OpenButton.Parent = ScreenGui
-OpenButton.Size = UDim2.new(0, 70, 0, 70)
-OpenButton.Position = UDim2.new(0, 20, 0.5, -35)
+OpenButton.Size = UDim2.new(0, 55, 0, 55)
+OpenButton.Position = UDim2.new(0, 15, 0.5, -27)
 OpenButton.Text = "⭐"
 OpenButton.Font = Enum.Font.GothamBold
-OpenButton.TextSize = 40
+OpenButton.TextSize = 32
 OpenButton.BackgroundColor3 = NEON_PURPLE
 OpenButton.TextColor3 = WHITE
 OpenButton.TextScaled = true
 OpenButton.BorderSizePixel = 0
 OpenButton.ZIndex = 100
 
--- Circular corner for open button
-addCorner(OpenButton, 35)
+addCorner(OpenButton, 28)
+addGlowStroke(OpenButton, 2, NEON_PURPLE)
 
--- Glowing stroke on open button
-addGlowStroke(OpenButton, 3, NEON_PURPLE)
+-- Open Button Drag (Mobile & PC Support)
+local buttonDragging = false
+local buttonDragStart
+local buttonStartPos
+
+local function handleOpenButtonDrag(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		buttonDragging = true
+		buttonDragStart = input.Position
+		buttonStartPos = OpenButton.Position
+	end
+end
+
+local function handleOpenButtonDragEnd(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		buttonDragging = false
+	end
+end
+
+OpenButton.InputBegan:Connect(handleOpenButtonDrag)
+OpenButton.InputEnded:Connect(handleOpenButtonDragEnd)
+
+UIS.InputChanged:Connect(function(input)
+	if buttonDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - buttonDragStart
+		OpenButton.Position = UDim2.new(
+			buttonStartPos.X.Scale,
+			math.clamp(buttonStartPos.X.Offset + delta.X, -10, 100),
+			buttonStartPos.Y.Scale,
+			math.clamp(buttonStartPos.Y.Offset + delta.Y, -10, 500)
+		)
+	end
+end)
 
 -- ============================================
--- MAIN FRAME (Galaxy Space Theme)
+-- MAIN FRAME (Smaller, 350x280)
 -- ============================================
 MainFrame.Parent = ScreenGui
-MainFrame.Size = UDim2.new(0, 500, 0, 350)
-local openPos = UDim2.new(0.5, -250, 0.5, -175)
-local closedPos = UDim2.new(0.5, -250, -1.2, -175)
+MainFrame.Size = UDim2.new(0, 350, 0, 280)
+local openPos = UDim2.new(0.5, -175, 0.5, -140)
+local closedPos = UDim2.new(0.5, -175, -1.2, -140)
 MainFrame.Position = closedPos
 MainFrame.BackgroundColor3 = BLACK_TRANSPARENT
 MainFrame.Visible = false
 MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 99
 
--- Add stars background to main frame
 createStarField(MainFrame)
 
--- Glowing stroke and corner for main frame
 addCorner(MainFrame, 15)
 addGlowStroke(MainFrame, 3, NEON_PURPLE)
 
 -- ============================================
--- TITLE BAR (Transparent Black with Purple Glow)
+-- TITLE BAR (Draggable, Mobile/PC)
 -- ============================================
 Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Size = UDim2.new(1, 0, 0, 40)
 Title.Position = UDim2.new(0, 0, 0, 0)
 Title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Title.BackgroundTransparency = 0.3
-Title.Text = "⚡ DELTA GALAXY HUB ⚡"
+Title.Text = "⚡ GALAXY ⚡"
 Title.Font = Enum.Font.GothamBold
 Title.TextColor3 = WHITE
 Title.TextScaled = true
@@ -169,70 +188,104 @@ Title.ZIndex = 100
 addCorner(Title, 12)
 addGlowStroke(Title, 2, NEON_PURPLE)
 
+-- Title Drag (Mobile & PC Support)
+local dragging = false
+local dragStart
+local startPos
+
+local function handleTitleDragBegin(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+	end
+end
+
+local function handleTitleDragEnd(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end
+
+Title.InputBegan:Connect(handleTitleDragBegin)
+Title.InputEnded:Connect(handleTitleDragEnd)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		MainFrame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
 -- ============================================
--- CLOSE BUTTON (Neon Purple X)
+-- CLOSE BUTTON
 -- ============================================
 CloseButton.Parent = Title
-CloseButton.Size = UDim2.new(0, 45, 0, 45)
-CloseButton.Position = UDim2.new(1, -50, 0, 2)
+CloseButton.Size = UDim2.new(0, 35, 0, 35)
+CloseButton.Position = UDim2.new(1, -40, 0, 2)
 CloseButton.Text = "✕"
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 24
+CloseButton.TextSize = 20
 CloseButton.BackgroundColor3 = NEON_PURPLE
 CloseButton.TextColor3 = WHITE
 CloseButton.TextScaled = true
 CloseButton.BorderSizePixel = 0
 CloseButton.ZIndex = 101
 
-addCorner(CloseButton, 8)
+addCorner(CloseButton, 6)
 addGlowStroke(CloseButton, 2, LIGHT_PURPLE)
 
 -- ============================================
--- TAB SYSTEM (Glassmorphism)
+-- TAB
 -- ============================================
 Tab1.Parent = MainFrame
-Tab1.Size = UDim2.new(0, 140, 0, 38)
-Tab1.Position = UDim2.new(0, 15, 0, 60)
+Tab1.Size = UDim2.new(0, 100, 0, 32)
+Tab1.Position = UDim2.new(0, 10, 0, 50)
 Tab1.Text = "🌌 Main"
 Tab1.Font = Enum.Font.GothamBold
-Tab1.TextSize = 16
+Tab1.TextSize = 14
 Tab1.BorderSizePixel = 0
 Tab1.ZIndex = 100
 
 applyGlassmorphism(Tab1, DARK_PURPLE)
-addCorner(Tab1, 10)
+addCorner(Tab1, 8)
 
 -- ============================================
--- CONTENT FRAME
+-- CONTENT
 -- ============================================
 Content.Parent = MainFrame
-Content.Size = UDim2.new(1, -30, 1, -120)
-Content.Position = UDim2.new(0, 15, 0, 105)
+Content.Size = UDim2.new(1, -20, 1, -95)
+Content.Position = UDim2.new(0, 10, 0, 90)
 Content.BackgroundTransparency = 1
 Content.BorderSizePixel = 0
 Content.ZIndex = 98
 
 -- ============================================
--- EXECUTE BUTTON (Neon Purple with Gradient Effect)
+-- EXECUTE BUTTON
 -- ============================================
 ExecuteButton.Parent = Content
-ExecuteButton.Size = UDim2.new(0, 220, 0, 50)
-ExecuteButton.Position = UDim2.new(0, 15, 0, 20)
-ExecuteButton.Text = "▶ RUN SCRIPT"
+ExecuteButton.Size = UDim2.new(0, 160, 0, 40)
+ExecuteButton.Position = UDim2.new(0, 10, 0, 15)
+ExecuteButton.Text = "▶ RUN"
 ExecuteButton.Font = Enum.Font.GothamBold
-ExecuteButton.TextSize = 18
+ExecuteButton.TextSize = 14
 ExecuteButton.BackgroundColor3 = NEON_PURPLE
 ExecuteButton.TextColor3 = WHITE
 ExecuteButton.BorderSizePixel = 0
 ExecuteButton.ZIndex = 100
 
-addCorner(ExecuteButton, 12)
-addGlowStroke(ExecuteButton, 3, LIGHT_PURPLE)
+addCorner(ExecuteButton, 10)
+addGlowStroke(ExecuteButton, 2, LIGHT_PURPLE)
 
 -- ============================================
--- TWEEN ANIMATIONS
+-- ANIMATIONS
 -- ============================================
-local tweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function setOpen(state)
 	if state then
@@ -252,40 +305,40 @@ end
 -- EXECUTE BUTTON FUNCTIONALITY
 -- ============================================
 ExecuteButton.MouseButton1Click:Connect(function()
-	ExecuteButton.Text = "⏳ EXECUTING..."
+	ExecuteButton.Text = "⏳"
 	ExecuteButton.Active = false
 	
 	local rawUrl = "https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script"
 	local ok, result = pcall(function()
 		local body = game:HttpGet(rawUrl)
 		if not body or #body == 0 then
-			error("Remote script is empty or not found at: " .. rawUrl)
+			error("Script not found")
 		end
 		local f = loadstring(body)
 		if type(f) ~= "function" then
-			error("Loaded remote content is not a function.")
+			error("Invalid script")
 		end
 		f()
 	end)
 
 	if ok then
-		ExecuteButton.Text = "✓ DONE"
+		ExecuteButton.Text = "✓"
 		ExecuteButton.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
 		
-		task.delay(1.5, function()
+		task.delay(1.2, function()
 			if ExecuteButton and ExecuteButton.Parent then
-				ExecuteButton.Text = "▶ RUN SCRIPT"
+				ExecuteButton.Text = "▶ RUN"
 				ExecuteButton.BackgroundColor3 = NEON_PURPLE
 			end
 		end)
 	else
-		warn("Failed to execute remote script:", result)
-		ExecuteButton.Text = "✗ ERROR"
+		warn("Error:", result)
+		ExecuteButton.Text = "✗"
 		ExecuteButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 		
-		task.delay(1.5, function()
+		task.delay(1.2, function()
 			if ExecuteButton and ExecuteButton.Parent then
-				ExecuteButton.Text = "▶ RUN SCRIPT"
+				ExecuteButton.Text = "▶ RUN"
 				ExecuteButton.BackgroundColor3 = NEON_PURPLE
 			end
 		end)
@@ -295,10 +348,12 @@ ExecuteButton.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================
--- OPEN/CLOSE BUTTON
+-- BUTTON HANDLERS
 -- ============================================
 OpenButton.MouseButton1Click:Connect(function()
-	setOpen(not MainFrame.Visible)
+	if not buttonDragging then
+		setOpen(not MainFrame.Visible)
+	end
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -306,40 +361,7 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================
--- DRAG FUNCTIONALITY (Smooth)
--- ============================================
-local dragging = false
-local dragStart
-local startPos
-
-Title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
-	end
-end)
-
-Title.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-
-UIS.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local delta = input.Position - dragStart
-		MainFrame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
--- ============================================
--- KEYBOARD CONTROLS
+-- KEYBOARD
 -- ============================================
 UIS.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
