@@ -70,6 +70,1702 @@ savedAnimations = loadData(RDB_FILE)
 frozenAnimations = loadData(FREEZE_FILE)
 
 --==================================================
+-- FIX OLD DATA
+--==================================================
+
+for index, data in ipairs(savedAnimations) do
+
+    if not data.Key then
+        data.Key =
+            "RDB_OLD_"
+            .. tostring(index)
+            .. "_"
+            .. makeKey("")
+    end
+
+    data.Id = tostring(data.Id or "")
+    data.Start = tonumber(data.Start) or 0
+    data.End = tonumber(data.End) or 0
+end
+
+for index, data in ipairs(frozenAnimations) do
+
+    if not data.Key then
+        data.Key =
+            "FREEZE_OLD_"
+            .. tostring(index)
+            .. "_"
+            .. makeKey("")
+    end
+
+    data.Id = tostring(data.Id or "")
+
+    data.FrozenTime =
+        tonumber(data.FrozenTime)
+        or tonumber(data.TimePos)
+        or tonumber(data.Start)
+        or 0
+end
+
+saveData(RDB_FILE, savedAnimations)
+saveData(FREEZE_FILE, frozenAnimations)
+
+--==================================================
+-- CHARACTER RESPAWN
+--==================================================
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+
+    Character = char
+    Humanoid = Character:WaitForChild("Humanoid")
+    Animator = Humanoid:WaitForChild("Animator")
+
+    table.clear(activeTracks)
+    table.clear(activeData)
+    table.clear(trackConnections)
+    table.clear(spamLoops)
+end)
+
+--==================================================
+-- GUI
+--==================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AnimStudioPro"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+pcall(function()
+    ScreenGui.Parent =
+        (gethui and gethui())
+        or CoreGui
+end)
+
+if not ScreenGui.Parent then
+    ScreenGui.Parent =
+        LocalPlayer:WaitForChild("PlayerGui")
+end
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = ScreenGui
+ToggleBtn.Size = UDim2.new(0, 110, 0, 35)
+ToggleBtn.Position = UDim2.new(0.02, 0, 0.2, 0)
+ToggleBtn.Text = "فتح / إغلاق"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+ToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+
+--==================================================
+-- MAIN
+--==================================================
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0,540,0,620)
+MainFrame.Position = UDim2.new(0.22,0,0.12,0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+--==================================================
+-- TOP BAR
+--==================================================
+
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.Size = UDim2.new(1,0,0,155)
+TopBar.BackgroundColor3 = Color3.fromRGB(35,35,35)
+TopBar.BorderSizePixel = 0
+
+-- STOP ALL
+local StopAllBtn = Instance.new("TextButton")
+StopAllBtn.Parent = TopBar
+StopAllBtn.Size = UDim2.new(0,80,0,30)
+StopAllBtn.Position = UDim2.new(0.02,0,0.06,0)
+StopAllBtn.Text = "إيقاف الكل"
+StopAllBtn.BackgroundColor3 = Color3.fromRGB(180,40,40)
+StopAllBtn.TextColor3 = Color3.fromRGB(255,255,255)
+StopAllBtn.BorderSizePixel = 0
+
+-- SPEED
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Parent = TopBar
+SpeedInput.Size = UDim2.new(0,70,0,30)
+SpeedInput.Position = UDim2.new(0.18,0,0.06,0)
+SpeedInput.Text = "1"
+SpeedInput.PlaceholderText = "السرعة"
+SpeedInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+SpeedInput.TextColor3 = Color3.fromRGB(255,255,255)
+SpeedInput.BorderSizePixel = 0
+SpeedInput.ClearTextOnFocus = false
+
+-- SPAM SPEED
+local SpamSpeedInput = Instance.new("TextBox")
+SpamSpeedInput.Parent = TopBar
+SpamSpeedInput.Size = UDim2.new(0,85,0,30)
+SpamSpeedInput.Position = UDim2.new(0.33,0,0.06,0)
+SpamSpeedInput.Text = "5"
+SpamSpeedInput.PlaceholderText = "سرعة السبام"
+SpamSpeedInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+SpamSpeedInput.TextColor3 = Color3.fromRGB(255,255,255)
+SpamSpeedInput.BorderSizePixel = 0
+SpamSpeedInput.ClearTextOnFocus = false
+
+-- FADE IN
+local FadeInInput = Instance.new("TextBox")
+FadeInInput.Parent = TopBar
+FadeInInput.Size = UDim2.new(0,65,0,30)
+FadeInInput.Position = UDim2.new(0.51,0,0.06,0)
+FadeInInput.Text = "0.1"
+FadeInInput.PlaceholderText = "Fade In"
+FadeInInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+FadeInInput.TextColor3 = Color3.fromRGB(255,255,255)
+FadeInInput.BorderSizePixel = 0
+FadeInInput.ClearTextOnFocus = false
+
+-- FADE OUT
+local FadeOutInput = Instance.new("TextBox")
+FadeOutInput.Parent = TopBar
+FadeOutInput.Size = UDim2.new(0,65,0,30)
+FadeOutInput.Position = UDim2.new(0.65,0,0.06,0)
+FadeOutInput.Text = "0.1"
+FadeOutInput.PlaceholderText = "Fade Out"
+FadeOutInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+FadeOutInput.TextColor3 = Color3.fromRGB(255,255,255)
+FadeOutInput.BorderSizePixel = 0
+FadeOutInput.ClearTextOnFocus = false
+
+-- FREEZE ALL
+local FreezeTopBtn = Instance.new("TextButton")
+FreezeTopBtn.Parent = TopBar
+FreezeTopBtn.Size = UDim2.new(0,80,0,30)
+FreezeTopBtn.Position = UDim2.new(0.79,0,0.06,0)
+FreezeTopBtn.Text = "تجميد الكل"
+FreezeTopBtn.BackgroundColor3 = Color3.fromRGB(0,140,180)
+FreezeTopBtn.TextColor3 = Color3.fromRGB(255,255,255)
+FreezeTopBtn.BorderSizePixel = 0
+
+-- ID
+local IdInput = Instance.new("TextBox")
+IdInput.Parent = TopBar
+IdInput.Size = UDim2.new(0,170,0,30)
+IdInput.Position = UDim2.new(0.02,0,0.40,0)
+IdInput.Text = ""
+IdInput.PlaceholderText = "أدخل ID الرقصة"
+IdInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+IdInput.TextColor3 = Color3.fromRGB(255,255,255)
+IdInput.BorderSizePixel = 0
+IdInput.ClearTextOnFocus = false
+
+-- SLICE
+local SliceInput = Instance.new("TextBox")
+SliceInput.Parent = TopBar
+SliceInput.Size = UDim2.new(0,80,0,30)
+SliceInput.Position = UDim2.new(0.36,0,0.40,0)
+SliceInput.Text = ""
+SliceInput.PlaceholderText = "قطع بالثواني"
+SliceInput.BackgroundColor3 = Color3.fromRGB(50,50,50)
+SliceInput.TextColor3 = Color3.fromRGB(255,255,255)
+SliceInput.BorderSizePixel = 0
+SliceInput.ClearTextOnFocus = false
+
+-- PREVIEW
+local PreviewBtn = Instance.new("TextButton")
+PreviewBtn.Parent = TopBar
+PreviewBtn.Size = UDim2.new(0,80,0,30)
+PreviewBtn.Position = UDim2.new(0.53,0,0.40,0)
+PreviewBtn.Text = "تشغيل"
+PreviewBtn.BackgroundColor3 = Color3.fromRGB(0,120,200)
+PreviewBtn.TextColor3 = Color3.fromRGB(255,255,255)
+PreviewBtn.BorderSizePixel = 0
+
+-- ADD
+local AddBtn = Instance.new("TextButton")
+AddBtn.Parent = TopBar
+AddBtn.Size = UDim2.new(0,95,0,30)
+AddBtn.Position = UDim2.new(0.70,0,0.40,0)
+AddBtn.Text = "إضافة وحفظ"
+AddBtn.BackgroundColor3 = Color3.fromRGB(40,140,40)
+AddBtn.TextColor3 = Color3.fromRGB(255,255,255)
+AddBtn.BorderSizePixel = 0
+
+-- STATUS
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = TopBar
+StatusLabel.Size = UDim2.new(0.96,0,0,25)
+StatusLabel.Position = UDim2.new(0.02,0,0.70,0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "جاهز"
+StatusLabel.TextColor3 = Color3.fromRGB(180,180,180)
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.TextSize = 14
+
+local HintLabel = Instance.new("TextLabel")
+HintLabel.Parent = TopBar
+HintLabel.Size = UDim2.new(0.96,0,0,20)
+HintLabel.Position = UDim2.new(0.02,0,0.86,0)
+HintLabel.BackgroundTransparency = 1
+HintLabel.Text = "Enter = فك التجميد | المجمدات يمكن تشغيلها فوق بعض"
+HintLabel.TextColor3 = Color3.fromRGB(130,130,130)
+HintLabel.TextXAlignment = Enum.TextXAlignment.Left
+HintLabel.TextSize = 12
+
+--==================================================
+-- TABS
+--==================================================
+
+local TabFrame = Instance.new("Frame")
+TabFrame.Parent = MainFrame
+TabFrame.Size = UDim2.new(1,0,0,35)
+TabFrame.Position = UDim2.new(0,0,0,160)
+TabFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+TabFrame.BorderSizePixel = 0
+
+local Tab1Btn = Instance.new("TextButton")
+Tab1Btn.Parent = TabFrame
+Tab1Btn.Size = UDim2.new(0.5,0,1,0)
+Tab1Btn.Text = "قائمة الرقصات"
+Tab1Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Tab1Btn.TextColor3 = Color3.fromRGB(255,255,255)
+Tab1Btn.BorderSizePixel = 0
+
+local Tab2Btn = Instance.new("TextButton")
+Tab2Btn.Parent = TabFrame
+Tab2Btn.Size = UDim2.new(0.5,0,1,0)
+Tab2Btn.Position = UDim2.new(0.5,0,0,0)
+Tab2Btn.Text = "قائمة التجميد"
+Tab2Btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+Tab2Btn.TextColor3 = Color3.fromRGB(255,255,255)
+Tab2Btn.BorderSizePixel = 0
+
+--==================================================
+-- SCROLLS
+--==================================================
+
+local ScrollRDB = Instance.new("ScrollingFrame")
+ScrollRDB.Parent = MainFrame
+ScrollRDB.Size = UDim2.new(1,-10,1,-210)
+ScrollRDB.Position = UDim2.new(0,5,0,200)
+ScrollRDB.BackgroundColor3 = Color3.fromRGB(20,20,20)
+ScrollRDB.BorderSizePixel = 0
+ScrollRDB.ScrollBarThickness = 5
+ScrollRDB.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local UIList1 = Instance.new("UIListLayout")
+UIList1.Parent = ScrollRDB
+UIList1.Padding = UDim.new(0,5)
+
+local ScrollFreeze = Instance.new("ScrollingFrame")
+ScrollFreeze.Parent = MainFrame
+ScrollFreeze.Size = UDim2.new(1,-10,1,-210)
+ScrollFreeze.Position = UDim2.new(0,5,0,200)
+ScrollFreeze.BackgroundColor3 = Color3.fromRGB(20,20,20)
+ScrollFreeze.BorderSizePixel = 0
+ScrollFreeze.ScrollBarThickness = 5
+ScrollFreeze.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollFreeze.Visible = false
+
+local UIList2 = Instance.new("UIListLayout")
+UIList2.Parent = ScrollFreeze
+UIList2.Padding = UDim.new(0,5)
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function status(text)
+    StatusLabel.Text = text
+end
+
+local function getSpeed()
+    return math.max(
+        tonumber(SpeedInput.Text) or 1,
+        0
+    )
+end
+
+local function getSpamSpeed()
+    return math.max(
+        tonumber(SpamSpeedInput.Text) or 5,
+        0.1
+    )
+end
+
+local function getFadeIn()
+    return math.max(
+        tonumber(FadeInInput.Text) or 0.1,
+        0
+    )
+end
+
+local function getFadeOut()
+    return math.max(
+        tonumber(FadeOutInput.Text) or 0.1,
+        0
+    )
+end
+
+local function disconnectTrack(key)
+
+    if trackConnections[key] then
+
+        trackConnections[key]:Disconnect()
+        trackConnections[key] = nil
+
+    end
+end
+
+local function stopTrack(key)
+
+    disconnectTrack(key)
+
+    if activeTracks[key] then
+
+        pcall(function()
+            activeTracks[key]:Stop(getFadeOut())
+        end)
+
+    end
+
+    activeTracks[key] = nil
+    activeData[key] = nil
+end
+
+local function stopAll()
+
+    for key in pairs(activeTracks) do
+        stopTrack(key)
+    end
+
+    status("تم إيقاف الكل")
+end
+
+--==================================================
+-- PLAY ANIMATION
+--==================================================
+
+local function playAnimation(data, frozen, forceNewTrack)
+
+    if not Animator
+        or not data
+        or not data.Id then
+
+        return nil, nil
+    end
+
+    local key
+
+    --================================================
+    -- IMPORTANT
+    --================================================
+    -- التشغيل العادي يستخدم Key الأصلي.
+    --
+    -- التشغيل المجمد يستخدم Runtime Key جديد
+    -- حتى لا يوقف أي مجمد آخر.
+    --================================================
+
+    if forceNewTrack then
+
+        key = makeKey("FROZEN_RUNTIME")
+
+    else
+
+        key = data.Key
+
+        if not key then
+            key = makeKey("TEMP")
+            data.Key = key
+        end
+
+        if activeTracks[key] then
+            stopTrack(key)
+        end
+    end
+
+    local animation = Instance.new("Animation")
+
+    animation.AnimationId =
+        "rbxassetid://"
+        .. tostring(data.Id)
+
+    local success, track =
+        pcall(function()
+            return Animator:LoadAnimation(animation)
+        end)
+
+    if not success or not track then
+
+        status("فشل تحميل الأنيميشن")
+        return nil, nil
+    end
+
+    --================================================
+    -- ALLOW MULTIPLE TRACKS
+    --================================================
+
+    pcall(function()
+        track.Priority = Enum.AnimationPriority.Action
+    end)
+
+    local startTime =
+        tonumber(data.Start) or 0
+
+    local endTime =
+        tonumber(data.End) or 0
+
+    track.Looped = false
+
+    track:Play(getFadeIn())
+
+    task.wait()
+
+    if startTime > 0 then
+
+        pcall(function()
+            track.TimePosition = startTime
+        end)
+    end
+
+    if frozen then
+
+        track:AdjustSpeed(0)
+
+        data.IsFrozen = true
+
+    else
+
+        track:AdjustSpeed(getSpeed())
+
+        data.IsFrozen = false
+    end
+
+    activeTracks[key] = track
+    activeData[key] = data
+
+    trackConnections[key] =
+        RunService.Heartbeat:Connect(function()
+
+            if activeTracks[key] ~= track then
+
+                disconnectTrack(key)
+                return
+            end
+
+            if data.IsFrozen then
+
+                pcall(function()
+                    track:AdjustSpeed(0)
+                end)
+
+                return
+            end
+
+            if endTime > 0
+                and track.TimePosition >= endTime then
+
+                pcall(function()
+                    track.TimePosition = startTime
+                end)
+
+                track:AdjustSpeed(getSpeed())
+
+            elseif not track.IsPlaying then
+
+                track:Play(0)
+
+                task.wait()
+
+                pcall(function()
+                    track.TimePosition = startTime
+                end)
+
+                track:AdjustSpeed(getSpeed())
+            end
+        end)
+
+    return track, key
+end
+
+--==================================================
+-- SPEED
+--==================================================
+
+local function applySpeed()
+
+    local speed = getSpeed()
+
+    for key, track in pairs(activeTracks) do
+
+        local data = activeData[key]
+
+        if track
+            and data
+            and not data.IsFrozen then
+
+            pcall(function()
+                track:AdjustSpeed(speed)
+            end)
+
+        end
+    end
+
+    status("السرعة: " .. tostring(speed) .. "x")
+end
+
+SpeedInput.FocusLost:Connect(applySpeed)
+
+SpeedInput:GetPropertyChangedSignal("Text"):Connect(function()
+
+    if SpeedInput:IsFocused()
+        and tonumber(SpeedInput.Text) then
+
+        applySpeed()
+
+    end
+end)
+
+--==================================================
+-- SPAM
+--==================================================
+
+local function stopSpam(key)
+
+    spamLoops[key] = nil
+
+    local data = activeData[key]
+
+    if data then
+        data.Spam = false
+    end
+end
+
+local function startSpam(data)
+
+    local key = data.Key
+
+    if spamLoops[key] then
+
+        stopSpam(key)
+        return false
+
+    end
+
+    spamLoops[key] = true
+    data.Spam = true
+
+    task.spawn(function()
+
+        while spamLoops[key] do
+
+            local delayTime =
+                1 / getSpamSpeed()
+
+            data.IsFrozen = false
+
+            local track =
+                activeTracks[key]
+
+            if not track then
+
+                track =
+                    playAnimation(
+                        data,
+                        false,
+                        false
+                    )
+            end
+
+            if track then
+
+                pcall(function()
+
+                    track:Play(0)
+                    track:AdjustSpeed(
+                        getSpeed()
+                    )
+
+                end)
+            end
+
+            task.wait(delayTime)
+
+            if not spamLoops[key] then
+                break
+            end
+
+            track =
+                activeTracks[key]
+
+            if track then
+
+                pcall(function()
+                    track:Stop(0)
+                end)
+
+            end
+
+            task.wait(delayTime)
+        end
+    end)
+
+    return true
+end
+
+--==================================================
+-- FREEZE ALL
+--==================================================
+
+FreezeTopBtn.MouseButton1Click:Connect(function()
+
+    local found = false
+
+    for key, track in pairs(activeTracks) do
+
+        local data = activeData[key]
+
+        if data and track then
+
+            data.IsFrozen = true
+
+            data.FrozenTime =
+                track.TimePosition
+
+            pcall(function()
+                track:AdjustSpeed(0)
+            end)
+
+            -- حفظ Freeze مستقل
+            table.insert(
+                frozenAnimations,
+                {
+                    Key = makeKey("FREEZE"),
+
+                    Name =
+                        data.Name
+                        or (
+                            "Frozen_"
+                            .. tostring(
+                                #frozenAnimations + 1
+                            )
+                        ),
+
+                    Id = tostring(data.Id),
+
+                    Start =
+                        tonumber(data.Start) or 0,
+
+                    End =
+                        tonumber(data.End) or 0,
+
+                    FrozenTime =
+                        data.FrozenTime,
+
+                    IsFrozen = true,
+
+                    Spam = false
+                }
+            )
+
+            found = true
+        end
+    end
+
+    if found then
+
+        saveData(
+            FREEZE_FILE,
+            frozenAnimations
+        )
+
+        status(
+            "تم تجميد وحفظ الكل"
+        )
+
+        task.defer(function()
+            refreshFreezeList()
+        end)
+
+    else
+
+        status("لا يوجد أنيميشن")
+
+    end
+end)
+
+--==================================================
+-- UNFREEZE ALL
+--==================================================
+
+local function unfreezeAll()
+
+    local found = false
+
+    for key, data in pairs(activeData) do
+
+        if data
+            and data.IsFrozen then
+
+            data.IsFrozen = false
+
+            local track =
+                activeTracks[key]
+
+            if track then
+
+                pcall(function()
+                    track:AdjustSpeed(
+                        getSpeed()
+                    )
+                end)
+
+            end
+
+            found = true
+        end
+    end
+
+    if found then
+        status("تم إلغاء التجميد")
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input)
+
+    if input.KeyCode == Enum.KeyCode.Return
+        or input.KeyCode == Enum.KeyCode.KeypadEnter then
+
+        unfreezeAll()
+
+    end
+end)
+
+--==================================================
+-- TABS
+--==================================================
+
+Tab1Btn.MouseButton1Click:Connect(function()
+
+    ScrollRDB.Visible = true
+    ScrollFreeze.Visible = false
+
+    Tab1Btn.BackgroundColor3 =
+        Color3.fromRGB(50,50,50)
+
+    Tab2Btn.BackgroundColor3 =
+        Color3.fromRGB(35,35,35)
+end)
+
+Tab2Btn.MouseButton1Click:Connect(function()
+
+    ScrollRDB.Visible = false
+    ScrollFreeze.Visible = true
+
+    Tab1Btn.BackgroundColor3 =
+        Color3.fromRGB(35,35,35)
+
+    Tab2Btn.BackgroundColor3 =
+        Color3.fromRGB(50,50,50)
+end)
+
+StopAllBtn.MouseButton1Click:Connect(function()
+
+    for key in pairs(spamLoops) do
+        spamLoops[key] = nil
+    end
+
+    stopAll()
+end)
+
+--==================================================
+-- REFRESH FUNCTIONS
+--==================================================
+
+local refreshRDBList
+local refreshFreezeList
+
+--==================================================
+-- RDB LIST
+--==================================================
+
+refreshRDBList = function()
+
+    for _, child in ipairs(
+        ScrollRDB:GetChildren()
+    ) do
+
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+
+    for index, data in ipairs(savedAnimations) do
+
+        if not data.Key then
+
+            data.Key =
+                makeKey("RDB")
+
+        end
+
+        local Item = Instance.new("Frame")
+        Item.Parent = ScrollRDB
+        Item.Size = UDim2.new(1,-10,0,70)
+        Item.BackgroundColor3 =
+            Color3.fromRGB(40,40,40)
+        Item.BorderSizePixel = 0
+
+        local NameBox = Instance.new("TextBox")
+        NameBox.Parent = Item
+        NameBox.Size = UDim2.new(0,120,0,28)
+        NameBox.Position = UDim2.new(0.01,0,0.08,0)
+        NameBox.Text =
+            data.Name
+            or ("Anim_" .. index)
+        NameBox.BackgroundColor3 =
+            Color3.fromRGB(50,50,50)
+        NameBox.TextColor3 =
+            Color3.fromRGB(255,255,255)
+        NameBox.BorderSizePixel = 0
+        NameBox.ClearTextOnFocus = false
+
+        local EditBtn = Instance.new("TextButton")
+        EditBtn.Parent = Item
+        EditBtn.Size = UDim2.new(0,55,0,28)
+        EditBtn.Position = UDim2.new(0.25,0,0.08,0)
+        EditBtn.Text = "تعديل"
+        EditBtn.BackgroundColor3 =
+            Color3.fromRGB(110,80,180)
+        EditBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+        EditBtn.BorderSizePixel = 0
+
+        EditBtn.MouseButton1Click:Connect(function()
+
+            data.Name = NameBox.Text
+
+            saveData(
+                RDB_FILE,
+                savedAnimations
+            )
+
+            status("تم تعديل الاسم")
+        end)
+
+        local PlayBtn = Instance.new("TextButton")
+        PlayBtn.Parent = Item
+        PlayBtn.Size = UDim2.new(0,60,0,28)
+        PlayBtn.Position = UDim2.new(0.37,0,0.08,0)
+        PlayBtn.Text = "تشغيل"
+        PlayBtn.BackgroundColor3 =
+            Color3.fromRGB(0,120,200)
+        PlayBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+        PlayBtn.BorderSizePixel = 0
+
+        PlayBtn.MouseButton1Click:Connect(function()
+
+            data.IsFrozen = false
+
+            playAnimation(
+                data,
+                false,
+                false
+            )
+
+            status("تشغيل مستمر")
+        end)
+
+        local FreezeBtn = Instance.new("TextButton")
+        FreezeBtn.Parent = Item
+        FreezeBtn.Size = UDim2.new(0,65,0,28)
+        FreezeBtn.Position = UDim2.new(0.50,0,0.08,0)
+        FreezeBtn.Text = "تجميد"
+        FreezeBtn.BackgroundColor3 =
+            Color3.fromRGB(0,150,150)
+        FreezeBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+        FreezeBtn.BorderSizePixel = 0
+
+        FreezeBtn.MouseButton1Click:Connect(function()
+
+            local track =
+                activeTracks[data.Key]
+
+            if not track then
+
+                data.IsFrozen = false
+
+                track =
+                    playAnimation(
+                        data,
+                        false,
+                        false
+                    )
+            end
+
+            if not track then
+                return
+            end
+
+            data.IsFrozen = true
+
+            data.FrozenTime =
+                track.TimePosition
+
+            pcall(function()
+                track:AdjustSpeed(0)
+            end)
+
+            table.insert(
+                frozenAnimations,
+                {
+                    Key =
+                        makeKey("FREEZE"),
+
+                    Name =
+                        NameBox.Text
+                        .. "_Frozen_"
+                        .. tostring(
+                            #frozenAnimations + 1
+                        ),
+
+                    Id =
+                        tostring(data.Id),
+
+                    Start =
+                        tonumber(data.Start)
+                        or 0,
+
+                    End =
+                        tonumber(data.End)
+                        or 0,
+
+                    FrozenTime =
+                        data.FrozenTime,
+
+                    IsFrozen = true,
+
+                    Spam = false
+                }
+            )
+
+            saveData(
+                FREEZE_FILE,
+                frozenAnimations
+            )
+
+            refreshFreezeList()
+
+            status(
+                "تم حفظ نقطة تجميد عند "
+                .. string.format(
+                    "%.3f",
+                    data.FrozenTime
+                )
+                .. "s"
+            )
+        end)
+
+        local DelBtn = Instance.new("TextButton")
+        DelBtn.Parent = Item
+        DelBtn.Size = UDim2.new(0,45,0,28)
+        DelBtn.Position = UDim2.new(0.64,0,0.08,0)
+        DelBtn.Text = "حذف"
+        DelBtn.BackgroundColor3 =
+            Color3.fromRGB(180,40,40)
+        DelBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+        DelBtn.BorderSizePixel = 0
+
+        DelBtn.MouseButton1Click:Connect(function()
+
+            stopSpam(data.Key)
+            stopTrack(data.Key)
+
+            table.remove(
+                savedAnimations,
+                index
+            )
+
+            saveData(
+                RDB_FILE,
+                savedAnimations
+            )
+
+            refreshRDBList()
+
+            status("تم حذف الرقصة")
+        end)
+
+        local Info = Instance.new("TextLabel")
+        Info.Parent = Item
+        Info.Size = UDim2.new(1,-10,0,20)
+        Info.Position = UDim2.new(0.01,0,0.65,0)
+        Info.BackgroundTransparency = 1
+        Info.TextColor3 =
+            Color3.fromRGB(150,150,150)
+        Info.TextXAlignment =
+            Enum.TextXAlignment.Left
+        Info.TextSize = 12
+
+        local startValue =
+            tonumber(data.Start) or 0
+
+        local endValue =
+            tonumber(data.End) or 0
+
+        Info.Text =
+            "ID: "
+            .. tostring(data.Id)
+            .. " | "
+            .. string.format(
+                "%.2f",
+                startValue
+            )
+            .. "s → "
+            .. (
+                endValue > 0
+                and string.format(
+                    "%.2f",
+                    endValue
+                ) .. "s"
+                or "Loop"
+            )
+    end
+
+    saveData(
+        RDB_FILE,
+        savedAnimations
+    )
+end
+
+--==================================================
+-- FREEZE LIST
+--==================================================
+
+refreshFreezeList = function()
+
+    for _, child in ipairs(
+        ScrollFreeze:GetChildren()
+    ) do
+
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+
+    for index, data in ipairs(
+        frozenAnimations
+    ) do
+
+        if not data.Key then
+            data.Key =
+                makeKey("FREEZE")
+        end
+
+        local Item = Instance.new("Frame")
+        Item.Parent = ScrollFreeze
+        Item.Size = UDim2.new(1,-10,0,80)
+
+        Item.BackgroundColor3 =
+            Color3.fromRGB(40,40,40)
+
+        Item.BorderSizePixel = 0
+
+        -- NAME
+        local NameBox = Instance.new("TextBox")
+        NameBox.Parent = Item
+        NameBox.Size = UDim2.new(0,120,0,28)
+        NameBox.Position = UDim2.new(0.01,0,0.08,0)
+        NameBox.Text =
+            data.Name
+            or ("Frozen_" .. index)
+
+        NameBox.BackgroundColor3 =
+            Color3.fromRGB(50,50,50)
+
+        NameBox.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        NameBox.BorderSizePixel = 0
+        NameBox.ClearTextOnFocus = false
+
+        -- EDIT
+        local EditBtn = Instance.new("TextButton")
+        EditBtn.Parent = Item
+        EditBtn.Size = UDim2.new(0,55,0,28)
+        EditBtn.Position = UDim2.new(0.25,0,0.08,0)
+        EditBtn.Text = "تعديل"
+
+        EditBtn.BackgroundColor3 =
+            Color3.fromRGB(110,80,180)
+
+        EditBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        EditBtn.BorderSizePixel = 0
+
+        EditBtn.MouseButton1Click:Connect(function()
+
+            data.Name = NameBox.Text
+
+            saveData(
+                FREEZE_FILE,
+                frozenAnimations
+            )
+
+            status("تم تعديل الاسم")
+        end)
+
+        --==================================================
+        -- PLAY FROZEN
+        --==================================================
+
+        local PlayBtn = Instance.new("TextButton")
+        PlayBtn.Parent = Item
+        PlayBtn.Size = UDim2.new(0,70,0,28)
+        PlayBtn.Position = UDim2.new(0.37,0,0.08,0)
+
+        PlayBtn.Text = "تشغيل مجمد"
+
+        PlayBtn.BackgroundColor3 =
+            Color3.fromRGB(0,120,200)
+
+        PlayBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        PlayBtn.BorderSizePixel = 0
+
+        PlayBtn.MouseButton1Click:Connect(function()
+
+            --==================================================
+            -- NEW:
+            -- لا نستخدم data.Key هنا.
+            -- كل ضغطة تحصل على Runtime Key جديد.
+            --==================================================
+
+            local frozenData = {
+
+                Key =
+                    makeKey(
+                        "FROZEN_PLAY"
+                    ),
+
+                Id =
+                    tostring(data.Id),
+
+                Start =
+                    tonumber(data.Start)
+                    or 0,
+
+                End =
+                    tonumber(data.End)
+                    or 0,
+
+                FrozenTime =
+                    tonumber(
+                        data.FrozenTime
+                    )
+                    or 0,
+
+                IsFrozen = true
+            }
+
+            local track, runtimeKey =
+                playAnimation(
+                    frozenData,
+                    true,
+                    true
+                )
+
+            if track then
+
+                pcall(function()
+
+                    track.TimePosition =
+                        frozenData.FrozenTime
+
+                end)
+
+                track:AdjustSpeed(0)
+
+                status(
+                    "تم تشغيل مجمد جديد فوق السابق"
+                )
+            end
+        end)
+
+        --==================================================
+        -- SPAM
+        --==================================================
+
+        local SpamBtn = Instance.new("TextButton")
+        SpamBtn.Parent = Item
+        SpamBtn.Size = UDim2.new(0,70,0,28)
+        SpamBtn.Position = UDim2.new(0.50,0,0.08,0)
+
+        SpamBtn.Text =
+            spamLoops[data.Key]
+            and "Spam ON"
+            or "Spam OFF"
+
+        SpamBtn.BackgroundColor3 =
+            spamLoops[data.Key]
+            and Color3.fromRGB(40,160,70)
+            or Color3.fromRGB(90,90,90)
+
+        SpamBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        SpamBtn.BorderSizePixel = 0
+
+        SpamBtn.MouseButton1Click:Connect(function()
+
+            if spamLoops[data.Key] then
+
+                stopSpam(data.Key)
+
+                SpamBtn.Text =
+                    "Spam OFF"
+
+                SpamBtn.BackgroundColor3 =
+                    Color3.fromRGB(90,90,90)
+
+                status("Spam OFF")
+
+            else
+
+                data.IsFrozen = false
+
+                local started =
+                    startSpam(data)
+
+                if started then
+
+                    SpamBtn.Text =
+                        "Spam ON"
+
+                    SpamBtn.BackgroundColor3 =
+                        Color3.fromRGB(40,160,70)
+
+                    status(
+                        "Spam ON | سرعة "
+                        .. tostring(
+                            getSpamSpeed()
+                        )
+                    )
+                end
+            end
+        end)
+
+        --==================================================
+        -- UNFREEZE
+        --==================================================
+
+        local UnfreezeBtn =
+            Instance.new("TextButton")
+
+        UnfreezeBtn.Parent = Item
+        UnfreezeBtn.Size =
+            UDim2.new(0,85,0,28)
+
+        UnfreezeBtn.Position =
+            UDim2.new(0.64,0,0.08,0)
+
+        UnfreezeBtn.Text =
+            "إلغاء التجميد"
+
+        UnfreezeBtn.BackgroundColor3 =
+            Color3.fromRGB(40,150,80)
+
+        UnfreezeBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        UnfreezeBtn.BorderSizePixel = 0
+
+        UnfreezeBtn.MouseButton1Click:Connect(function()
+
+            data.IsFrozen = false
+
+            local track =
+                activeTracks[data.Key]
+
+            if track then
+
+                pcall(function()
+                    track:AdjustSpeed(
+                        getSpeed()
+                    )
+                end)
+
+            else
+
+                playAnimation(
+                    data,
+                    false,
+                    false
+                )
+            end
+
+            status(
+                "تم إلغاء التجميد بدون حذف"
+            )
+        end)
+
+        --==================================================
+        -- DELETE
+        --==================================================
+
+        local DeleteBtn =
+            Instance.new("TextButton")
+
+        DeleteBtn.Parent = Item
+        DeleteBtn.Size =
+            UDim2.new(0,45,0,28)
+
+        DeleteBtn.Position =
+            UDim2.new(0.82,0,0.08,0)
+
+        DeleteBtn.Text = "حذف"
+
+        DeleteBtn.BackgroundColor3 =
+            Color3.fromRGB(180,40,40)
+
+        DeleteBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
+        DeleteBtn.BorderSizePixel = 0
+
+        DeleteBtn.MouseButton1Click:Connect(function()
+
+            stopSpam(data.Key)
+
+            stopTrack(data.Key)
+
+            table.remove(
+                frozenAnimations,
+                index
+            )
+
+            saveData(
+                FREEZE_FILE,
+                frozenAnimations
+            )
+
+            refreshFreezeList()
+
+            status(
+                "تم حذف نقطة التجميد"
+            )
+        end)
+
+        --==================================================
+        -- INFO
+        --==================================================
+
+        local Info =
+            Instance.new("TextLabel")
+
+        Info.Parent = Item
+        Info.Size =
+            UDim2.new(1,-10,0,20)
+
+        Info.Position =
+            UDim2.new(0.01,0,0.68,0)
+
+        Info.BackgroundTransparency = 1
+
+        Info.TextColor3 =
+            Color3.fromRGB(150,150,150)
+
+        Info.TextXAlignment =
+            Enum.TextXAlignment.Left
+
+        Info.TextSize = 12
+
+        Info.Text =
+            "ID: "
+            .. tostring(data.Id)
+            .. " | Freeze: "
+            .. string.format(
+                "%.3f",
+                tonumber(
+                    data.FrozenTime
+                ) or 0
+            )
+            .. "s"
+    end
+
+    saveData(
+        FREEZE_FILE,
+        frozenAnimations
+    )
+end
+
+--==================================================
+-- PREVIEW
+--==================================================
+
+PreviewBtn.MouseButton1Click:Connect(function()
+
+    local id =
+        IdInput.Text:match("%d+")
+
+    if not id then
+
+        status("أدخل ID صحيح")
+        return
+
+    end
+
+    local data = {
+
+        Key =
+            makeKey("PREVIEW"),
+
+        Id = id,
+
+        Start = 0,
+        End = 0,
+
+        IsFrozen = false
+    }
+
+    playAnimation(
+        data,
+        false,
+        false
+    )
+
+    status("تشغيل مستمر")
+end)
+
+--==================================================
+-- ADD / SLICE
+--==================================================
+
+AddBtn.MouseButton1Click:Connect(function()
+
+    local id =
+        IdInput.Text:match("%d+")
+
+    if not id then
+
+        status("أدخل ID صحيح")
+        return
+
+    end
+
+    local slice =
+        tonumber(
+            SliceInput.Text
+        )
+
+    -- NORMAL
+    if not slice or slice <= 0 then
+
+        table.insert(
+            savedAnimations,
+            {
+                Key =
+                    makeKey("RDB"),
+
+                Id =
+                    tostring(id),
+
+                Start = 0,
+                End = 0,
+
+                Name =
+                    "Anim_"
+                    .. tostring(
+                        #savedAnimations + 1
+                    ),
+
+                Loop = true,
+                IsFrozen = false
+            }
+        )
+
+        saveData(
+            RDB_FILE,
+            savedAnimations
+        )
+
+        refreshRDBList()
+
+        IdInput.Text = ""
+        SliceInput.Text = ""
+
+        status("تمت الإضافة")
+
+        return
+    end
+
+    -- LOAD LENGTH
+    local animation =
+        Instance.new("Animation")
+
+    animation.AnimationId =
+        "rbxassetid://"
+        .. tostring(id)
+
+    local success, temp =
+        pcall(function()
+
+            return Animator:LoadAnimation(
+                animation
+            )
+        end)
+
+    if not success or not temp then
+
+        status("فشل تحميل الرقصة")
+        return
+
+    end
+
+    temp:Play(0)
+
+    task.wait(0.25)
+
+    local length =
+        temp.Length
+
+    temp:Stop(0)
+    temp:Destroy()
+
+    if not length
+        or length <= 0 then
+
+        status(
+            "لم يتم معرفة مدة الرقصة"
+        )
+
+        return
+    end
+
+    local startTime = 0
+    local count = 0
+
+    while startTime < length do
+
+        local endTime =
+            math.min(
+                startTime + slice,
+                length
+            )
+
+        count += 1
+
+        table.insert(
+            savedAnimations,
+            {
+                Key =
+                    makeKey(
+                        "SLICE"
+                    ),
+
+                Id =
+                    tostring(id),
+
+                Start =
+                    startTime,
+
+                End =
+                    endTime,
+
+                Name =
+                    "Anim_"
+                    .. tostring(
+                        #savedAnimations + 1
+                    ),
+
+                Loop = true,
+                IsFrozen = false
+            }
+        )
+
+        startTime = endTime
+
+        if count >= 500 then
+            break
+        end
+    end
+
+    saveData(
+        RDB_FILE,
+        savedAnimations
+    )
+
+    refreshRDBList()
+
+    IdInput.Text = ""
+    SliceInput.Text = ""
+
+    status(
+        "تم تقسيم الرقصة إلى "
+        .. tostring(count)
+        .. " أجزاء"
+    )
+end)
+
+--==================================================
+-- INITIALIZE
+--==================================================
+
+refreshRDBList()
+refreshFreezeList()
+
+status(
+    "Anim Studio Pro جاهز"
+)        .. tostring(math.random(100000, 999999))
+end
+
+--==================================================
+-- JSON
+--==================================================
+
+local function loadData(fileName)
+    if isfile and isfile(fileName) then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(fileName))
+        end)
+
+        if success and type(result) == "table" then
+            return result
+        end
+    end
+
+    return {}
+end
+
+local function saveData(fileName, data)
+    if writefile then
+        pcall(function()
+            writefile(
+                fileName,
+                HttpService:JSONEncode(data)
+            )
+        end)
+    end
+end
+
+savedAnimations = loadData(RDB_FILE)
+frozenAnimations = loadData(FREEZE_FILE)
+
+--==================================================
 -- FIX OLD DATA / UNIQUE KEYS
 --==================================================
 
