@@ -1,0 +1,238 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--// GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FreezeScriptsUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGui
+
+--// RESPONSIVE SCALE
+local UIScale = Instance.new("UIScale")
+UIScale.Scale = 1
+UIScale.Parent = ScreenGui
+
+--// OPEN / CLOSE BUTTON
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.fromOffset(55, 55)
+ToggleButton.Position = UDim2.new(0, 20, 0.5, -28)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Text = "×"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 25
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 14)
+ToggleCorner.Parent = ToggleButton
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Thickness = 1.5
+ToggleStroke.Color = Color3.fromRGB(70, 70, 80)
+ToggleStroke.Parent = ToggleButton
+
+--// MAIN
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(320, 285)
+Main.Position = UDim2.new(0.5, -160, 0.5, -142)
+Main.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+Main.BorderSizePixel = 0
+Main.Visible = true
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = Main
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 1.5
+MainStroke.Color = Color3.fromRGB(55, 55, 65)
+MainStroke.Parent = Main
+
+--// SIZE CONSTRAINT
+local SizeConstraint = Instance.new("UISizeConstraint")
+SizeConstraint.MinSize = Vector2.new(260, 245)
+SizeConstraint.MaxSize = Vector2.new(420, 360)
+SizeConstraint.Parent = Main
+
+--// TITLE
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 42)
+Title.Position = UDim2.fromOffset(10, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "Freeze Scripts"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 20
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+--// SUBTITLE
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -20, 0, 24)
+SubTitle.Position = UDim2.fromOffset(10, 42)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "Select a script"
+SubTitle.TextColor3 = Color3.fromRGB(145, 145, 155)
+SubTitle.TextSize = 13
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Main
+
+--// BUTTON CREATOR
+local function CreateButton(Text, Position)
+	local Button = Instance.new("TextButton")
+	Button.Size = UDim2.new(1, -30, 0, 52)
+	Button.Position = Position
+	Button.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+	Button.BorderSizePixel = 0
+	Button.Text = Text
+	Button.TextColor3 = Color3.fromRGB(240, 240, 245)
+	Button.TextSize = 14
+	Button.Font = Enum.Font.GothamMedium
+	Button.AutoButtonColor = true
+	Button.Parent = Main
+
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 12)
+	Corner.Parent = Button
+
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Thickness = 1
+	Stroke.Color = Color3.fromRGB(55, 55, 65)
+	Stroke.Parent = Button
+
+	return Button
+end
+
+--// BUTTONS
+local Script1 = CreateButton(
+	"❄  سكربت 3 الف سطر",
+	UDim2.fromOffset(15, 75)
+)
+
+local Script2 = CreateButton(
+	"💾  سكربت ثاني بدون تقطيع رقصات فقط تجميد",
+	UDim2.fromOffset(15, 135)
+)
+
+local Script3 = CreateButton(
+	"🆔 إظهار ايدي / كود الرقصة او استخدام لاشياء وسخه",
+	UDim2.fromOffset(15, 195)
+)
+
+--// DRAG FUNCTION
+local function MakeDraggable(Object)
+	local Dragging = false
+	local DragStart
+	local StartPosition
+
+	Object.InputBegan:Connect(function(Input)
+		if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+			Dragging = true
+			DragStart = Input.Position
+			StartPosition = Object.Position
+
+			Input.Changed:Connect(function()
+				if Input.UserInputState == Enum.UserInputState.End then
+					Dragging = false
+				end
+			end)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(Input)
+		if not Dragging then
+			return
+		end
+
+		if Input.UserInputType == Enum.UserInputType.MouseMovement
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+			local Delta = Input.Position - DragStart
+
+			Object.Position = UDim2.new(
+				StartPosition.X.Scale,
+				StartPosition.X.Offset + Delta.X,
+				StartPosition.Y.Scale,
+				StartPosition.Y.Offset + Delta.Y
+			)
+		end
+	end)
+end
+
+--// MAKE BOTH DRAGGABLE
+MakeDraggable(Main)
+MakeDraggable(ToggleButton)
+
+--// OPEN / CLOSE
+local Open = true
+
+ToggleButton.MouseButton1Click:Connect(function()
+	Open = not Open
+	Main.Visible = Open
+
+	if Open then
+		ToggleButton.Text = "×"
+	else
+		ToggleButton.Text = "☰"
+	end
+end)
+
+--// SCRIPT 1
+Script1.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet(
+		"https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/Script%20freeze%20new%20special"
+	))()
+end)
+
+--// SCRIPT 2
+Script2.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet(
+		"https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/refs/heads/main/freeze%20and%20save%20emote"
+	))()
+end)
+
+--// SCRIPT 3 - ANIMATION ID
+Script3.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet(
+		"https://raw.githubusercontent.com/gemzgaze-hash/Script-bang-/main/Bang%20script",
+		true
+	))()
+end)
+
+--// RESPONSIVE SCALE
+local Camera = workspace.CurrentCamera
+
+local function UpdateScale()
+	if not Camera then
+		return
+	end
+
+	local Width = Camera.ViewportSize.X
+
+	if Width <= 500 then
+		UIScale.Scale = 0.82
+	elseif Width <= 800 then
+		UIScale.Scale = 0.9
+	else
+		UIScale.Scale = 1
+	end
+end
+
+UpdateScale()
+
+if Camera then
+	Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+end
