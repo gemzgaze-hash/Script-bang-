@@ -680,14 +680,18 @@ local function playAnimation(data,frozen,forceNewTrack)
         end
 
         --==================================================
-        -- REVERSE LOOP
+        -- REVERSE LOOP (FIXED INFINITE LOOP)
         --==================================================
 
         if data.IsReverse then
 
-            local reverseSpeed = getReverseSpeed()
+            if not track.IsPlaying then
+                pcall(function()
+                    track:Play(0)
+                end)
+            end
 
-            local current = track.TimePosition
+            local reverseSpeed = getReverseSpeed()
 
             local lowerLimit = startTime
             local upperLimit = endTime
@@ -703,27 +707,17 @@ local function playAnimation(data,frozen,forceNewTrack)
                 end
             end
 
-            local newPosition =
-                current - (dt * reverseSpeed)
+            local current = track.TimePosition
 
-            if newPosition <= lowerLimit then
+            local newPosition = current - (dt * reverseSpeed)
+
+            if newPosition <= lowerLimit or newPosition >= upperLimit + 0.1 then
                 newPosition = upperLimit
             end
 
-            newPosition =
-                math.clamp(
-                    newPosition,
-                    lowerLimit,
-                    upperLimit
-                )
-
             pcall(function()
-
                 track:AdjustSpeed(0)
-
-                track.TimePosition =
-                    newPosition
-
+                track.TimePosition = newPosition
             end)
 
             return
@@ -827,8 +821,6 @@ local function startReverse(data)
 
     if endTime > startTime then
 
-        -- إذا كانت الحركة واقفة أو في البداية
-        -- يبدأ Reverse من نهاية الجزء
         if current <= startTime + 0.01
             or current >= endTime - 0.01 then
 
@@ -1286,10 +1278,6 @@ refreshRDBList = function()
             continue
         end
 
-        --==================================================
-        -- ITEM
-        --==================================================
-
         local Item =
             Instance.new("Frame")
 
@@ -1305,10 +1293,6 @@ refreshRDBList = function()
             Color3.fromRGB(40,40,40)
 
         Item.BorderSizePixel = 0
-
-        --==================================================
-        -- NAME
-        --==================================================
 
         local NameBox =
             Instance.new("TextBox")
@@ -1342,10 +1326,6 @@ refreshRDBList = function()
         NameBox.ClearTextOnFocus = false
 
         NameBox.TextSize = 11
-
-        --==================================================
-        -- EDIT
-        --==================================================
 
         local EditBtn =
             Instance.new("TextButton")
@@ -1387,10 +1367,6 @@ refreshRDBList = function()
             status("تم تعديل الاسم")
         end)
 
-        --==================================================
-        -- PLAY
-        --==================================================
-
         local PlayBtn =
             Instance.new("TextButton")
 
@@ -1431,10 +1407,6 @@ refreshRDBList = function()
 
             status("تشغيل مستمر")
         end)
-
-        --==================================================
-        -- REVERSE
-        --==================================================
 
         local ReverseBtn =
             Instance.new("TextButton")
@@ -1507,10 +1479,6 @@ refreshRDBList = function()
                 end
             end
         end)
-
-        --==================================================
-        -- FREEZE
-        --==================================================
 
         local FreezeBtn =
             Instance.new("TextButton")
@@ -1627,10 +1595,6 @@ refreshRDBList = function()
             )
         end)
 
-        --==================================================
-        -- DELETE
-        --==================================================
-
         local DelBtn =
             Instance.new("TextButton")
 
@@ -1681,10 +1645,6 @@ refreshRDBList = function()
 
             status("تم حذف الرقصة")
         end)
-
-        --==================================================
-        -- INFO
-        --==================================================
 
         local Info =
             Instance.new("TextLabel")
@@ -1914,10 +1874,6 @@ refreshFreezeList = function()
             continue
         end
 
-        --==================================================
-        -- ITEM
-        --==================================================
-
         local Item =
             Instance.new("Frame")
 
@@ -1935,10 +1891,6 @@ refreshFreezeList = function()
             )
 
         Item.BorderSizePixel = 0
-
-        --==================================================
-        -- NAME
-        --==================================================
 
         local NameBox =
             Instance.new("TextBox")
@@ -1976,10 +1928,6 @@ refreshFreezeList = function()
         NameBox.ClearTextOnFocus = false
 
         NameBox.TextSize = 11
-
-        --==================================================
-        -- EDIT
-        --==================================================
 
         local EditBtn =
             Instance.new("TextButton")
@@ -2024,10 +1972,6 @@ refreshFreezeList = function()
 
             status("تم تعديل الاسم")
         end)
-
-        --==================================================
-        -- PLAY FROZEN
-        --==================================================
 
         local PlayBtn =
             Instance.new("TextButton")
@@ -2114,10 +2058,6 @@ refreshFreezeList = function()
             end
         end)
 
-        --==================================================
-        -- REVERSE FROZEN
-        --==================================================
-
         local ReverseBtn =
             Instance.new("TextButton")
 
@@ -2160,10 +2100,6 @@ refreshFreezeList = function()
 
         ReverseBtn.MouseButton1Click:Connect(function()
 
-            --==================================================
-            -- OFF
-            --==================================================
-
             if data.IsReverse then
 
                 stopReverse(data)
@@ -2178,10 +2114,6 @@ refreshFreezeList = function()
 
                 return
             end
-
-            --==================================================
-            -- CREATE FROZEN REVERSE TRACK
-            --==================================================
 
             local runtimeData = {
 
@@ -2226,10 +2158,6 @@ refreshFreezeList = function()
             if not track then
                 return
             end
-
-            --==================================================
-            -- START FROM FROZEN TIME
-            --==================================================
 
             local frozenTime =
                 tonumber(
@@ -2283,10 +2211,6 @@ refreshFreezeList = function()
                 .. "x"
             )
         end)
-
-        --==================================================
-        -- SPAM
-        --==================================================
 
         local SpamBtn =
             Instance.new("TextButton")
@@ -2370,10 +2294,6 @@ refreshFreezeList = function()
             end
         end)
 
-        --==================================================
-        -- UNFREEZE
-        --==================================================
-
         local UnfreezeBtn =
             Instance.new("TextButton")
 
@@ -2440,10 +2360,6 @@ refreshFreezeList = function()
             )
         end)
 
-        --==================================================
-        -- DELETE
-        --==================================================
-
         local DeleteBtn =
             Instance.new("TextButton")
 
@@ -2498,10 +2414,6 @@ refreshFreezeList = function()
                 "تم حذف نقطة التجميد"
             )
         end)
-
-        --==================================================
-        -- INFO
-        --==================================================
 
         local Info =
             Instance.new("TextLabel")
@@ -2620,10 +2532,6 @@ AddBtn.MouseButton1Click:Connect(function()
             SliceInput.Text
         )
 
-    --==================================================
-    -- NORMAL ADD
-    --==================================================
-
     if not slice or slice <= 0 then
 
         table.insert(
@@ -2668,10 +2576,6 @@ AddBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    --==================================================
-    -- LOAD LENGTH
-    --==================================================
-
     local animation =
         Instance.new("Animation")
 
@@ -2713,10 +2617,6 @@ AddBtn.MouseButton1Click:Connect(function()
 
         return
     end
-
-    --==================================================
-    -- SLICE
-    --==================================================
 
     local startTime = 0
     local count = 0
