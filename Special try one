@@ -7,16 +7,25 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
---// CHARACTER
+--==================================================
+-- CHARACTER
+--==================================================
+
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local Animator = Humanoid:WaitForChild("Animator")
 
---// FILES
+--==================================================
+-- FILES
+--==================================================
+
 local RDB_FILE = "RDB.json"
 local FREEZE_FILE = "freezey_animations.json"
 
---// DATA
+--==================================================
+-- DATA
+--==================================================
+
 local savedAnimations = {}
 local frozenAnimations = {}
 
@@ -30,7 +39,7 @@ local spamLoops = {}
 --==================================================
 
 local function makeKey(prefix)
-    return prefix .. tostring(os.clock()) .. tostring(math.random(100000, 999999))
+    return prefix .. tostring(os.clock()) .. tostring(math.random(100000,999999))
 end
 
 --==================================================
@@ -39,7 +48,7 @@ end
 
 local function loadData(fileName)
     if isfile and isfile(fileName) then
-        local success, result = pcall(function()
+        local success,result = pcall(function()
             return HttpService:JSONDecode(readfile(fileName))
         end)
 
@@ -51,10 +60,10 @@ local function loadData(fileName)
     return {}
 end
 
-local function saveData(fileName, data)
+local function saveData(fileName,data)
     if writefile then
         pcall(function()
-            writefile(fileName, HttpService:JSONEncode(data))
+            writefile(fileName,HttpService:JSONEncode(data))
         end)
     end
 end
@@ -66,7 +75,8 @@ frozenAnimations = loadData(FREEZE_FILE)
 -- FIX OLD DATA
 --==================================================
 
-for index, data in ipairs(savedAnimations) do
+for index,data in ipairs(savedAnimations) do
+
     if not data.Key then
         data.Key = "RDB_OLD_" .. tostring(index) .. "_" .. makeKey("")
     end
@@ -74,29 +84,37 @@ for index, data in ipairs(savedAnimations) do
     data.Id = tostring(data.Id or "")
     data.Start = tonumber(data.Start) or 0
     data.End = tonumber(data.End) or 0
+    data.IsReverse = false
 end
 
-for index, data in ipairs(frozenAnimations) do
+for index,data in ipairs(frozenAnimations) do
+
     if not data.Key then
         data.Key = "FREEZE_OLD_" .. tostring(index) .. "_" .. makeKey("")
     end
 
     data.Id = tostring(data.Id or "")
+    data.Start = tonumber(data.Start) or 0
+    data.End = tonumber(data.End) or 0
+
     data.FrozenTime =
         tonumber(data.FrozenTime)
         or tonumber(data.TimePos)
         or tonumber(data.Start)
         or 0
+
+    data.IsReverse = false
 end
 
-saveData(RDB_FILE, savedAnimations)
-saveData(FREEZE_FILE, frozenAnimations)
+saveData(RDB_FILE,savedAnimations)
+saveData(FREEZE_FILE,frozenAnimations)
 
 --==================================================
 -- CHARACTER RESPAWN
 --==================================================
 
 LocalPlayer.CharacterAdded:Connect(function(char)
+
     Character = char
     Humanoid = Character:WaitForChild("Humanoid")
     Animator = Humanoid:WaitForChild("Animator")
@@ -125,7 +143,7 @@ if not ScreenGui.Parent then
 end
 
 --==================================================
--- TOGGLE BUTTON
+-- TOGGLE
 --==================================================
 
 local ToggleBtn = Instance.new("TextButton")
@@ -140,7 +158,7 @@ ToggleBtn.Active = true
 ToggleBtn.Draggable = true
 
 --==================================================
--- MAIN FRAME
+-- MAIN
 --==================================================
 
 local MainFrame = Instance.new("Frame")
@@ -151,10 +169,6 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
-
---==================================================
--- UI CONSTRAINTS
---==================================================
 
 local MainAspect = Instance.new("UIAspectRatioConstraint")
 MainAspect.Parent = MainFrame
@@ -167,34 +181,29 @@ MainSize.Parent = MainFrame
 MainSize.MinSize = Vector2.new(320,367)
 MainSize.MaxSize = Vector2.new(700,804)
 
---==================================================
--- UISCALE
---==================================================
-
 local MainScale = Instance.new("UIScale")
 MainScale.Parent = MainFrame
 
 local function updateUIScale()
+
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
     local viewport = Camera.ViewportSize
+
     local width = viewport.X
     local height = viewport.Y
 
-    local baseWidth = 540
-    local baseHeight = 620
+    local scaleX = width / 570
+    local scaleY = height / 650
 
-    local scaleX = width / (baseWidth + 30)
-    local scaleY = height / (baseHeight + 30)
-
-    local scale = math.min(scaleX, scaleY)
+    local scale = math.min(scaleX,scaleY)
 
     if width <= 500 then
-        scale = math.min(scale, 0.78)
+        scale = math.min(scale,0.78)
     end
 
-    scale = math.clamp(scale, 0.58, 1.25)
+    scale = math.clamp(scale,0.58,1.25)
 
     MainScale.Scale = scale
 
@@ -209,15 +218,14 @@ if workspace.CurrentCamera then
 end
 
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+
     if workspace.CurrentCamera then
+
         workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
+
         task.defer(updateUIScale)
     end
 end)
-
---==================================================
--- TOGGLE ACTION
---==================================================
 
 ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
@@ -335,7 +343,7 @@ FreezeTopBtn.TextColor3 = Color3.fromRGB(255,255,255)
 FreezeTopBtn.BorderSizePixel = 0
 
 --==================================================
--- ID INPUT
+-- ID
 --==================================================
 
 local IdInput = Instance.new("TextBox")
@@ -350,7 +358,7 @@ IdInput.BorderSizePixel = 0
 IdInput.ClearTextOnFocus = false
 
 --==================================================
--- SLICE INPUT
+-- SLICE
 --==================================================
 
 local SliceInput = Instance.new("TextBox")
@@ -365,7 +373,7 @@ SliceInput.BorderSizePixel = 0
 SliceInput.ClearTextOnFocus = false
 
 --==================================================
--- PREVIEW BUTTON
+-- PREVIEW
 --==================================================
 
 local PreviewBtn = Instance.new("TextButton")
@@ -378,7 +386,7 @@ PreviewBtn.TextColor3 = Color3.fromRGB(255,255,255)
 PreviewBtn.BorderSizePixel = 0
 
 --==================================================
--- ADD BUTTON
+-- ADD
 --==================================================
 
 local AddBtn = Instance.new("TextButton")
@@ -409,7 +417,7 @@ HintLabel.Parent = TopBar
 HintLabel.Size = UDim2.new(0.96,0,0,20)
 HintLabel.Position = UDim2.new(0.02,0,0.86,0)
 HintLabel.BackgroundTransparency = 1
-HintLabel.Text = "Enter = فك التجميد | Reverse = تشغيل الرقصة للخلف"
+HintLabel.Text = "Enter = فك التجميد | Reverse = Loop للخلف"
 HintLabel.TextColor3 = Color3.fromRGB(130,130,130)
 HintLabel.TextXAlignment = Enum.TextXAlignment.Left
 HintLabel.TextSize = 12
@@ -443,7 +451,7 @@ Tab2Btn.TextColor3 = Color3.fromRGB(255,255,255)
 Tab2Btn.BorderSizePixel = 0
 
 --==================================================
--- SEARCH RDB
+-- SEARCH
 --==================================================
 
 local SearchBox = Instance.new("TextBox")
@@ -466,13 +474,8 @@ SearchBtn.Text = "بحث"
 SearchBtn.BackgroundColor3 = Color3.fromRGB(0,120,200)
 SearchBtn.TextColor3 = Color3.fromRGB(255,255,255)
 SearchBtn.BorderSizePixel = 0
-SearchBtn.TextSize = 14
 
 local searchActive = false
-
---==================================================
--- SEARCH FREEZE
---==================================================
 
 local SearchFreezeBox = Instance.new("TextBox")
 SearchFreezeBox.Parent = MainFrame
@@ -495,7 +498,6 @@ SearchFreezeBtn.Text = "بحث مجمدات"
 SearchFreezeBtn.BackgroundColor3 = Color3.fromRGB(0,140,180)
 SearchFreezeBtn.TextColor3 = Color3.fromRGB(255,255,255)
 SearchFreezeBtn.BorderSizePixel = 0
-SearchFreezeBtn.TextSize = 14
 SearchFreezeBtn.Visible = false
 
 local searchFreezeActive = false
@@ -542,26 +544,27 @@ local function status(text)
 end
 
 local function getSpeed()
-    return math.max(tonumber(SpeedInput.Text) or 1, 0)
+    return math.max(tonumber(SpeedInput.Text) or 1,0)
 end
 
 local function getSpamSpeed()
-    return math.max(tonumber(SpamSpeedInput.Text) or 5, 0.1)
+    return math.max(tonumber(SpamSpeedInput.Text) or 5,0.1)
 end
 
 local function getReverseSpeed()
-    return math.max(tonumber(ReverseSpeedInput.Text) or 1, 0.01)
+    return math.max(tonumber(ReverseSpeedInput.Text) or 1,0.01)
 end
 
 local function getFadeIn()
-    return math.max(tonumber(FadeInInput.Text) or 0.1, 0)
+    return math.max(tonumber(FadeInInput.Text) or 0.1,0)
 end
 
 local function getFadeOut()
-    return math.max(tonumber(FadeOutInput.Text) or 0.1, 0)
+    return math.max(tonumber(FadeOutInput.Text) or 0.1,0)
 end
 
 local function disconnectTrack(key)
+
     if trackConnections[key] then
         trackConnections[key]:Disconnect()
         trackConnections[key] = nil
@@ -569,9 +572,11 @@ local function disconnectTrack(key)
 end
 
 local function stopTrack(key)
+
     disconnectTrack(key)
 
     if activeTracks[key] then
+
         pcall(function()
             activeTracks[key]:Stop(getFadeOut())
         end)
@@ -582,6 +587,7 @@ local function stopTrack(key)
 end
 
 local function stopAll()
+
     for key in pairs(activeTracks) do
         stopTrack(key)
     end
@@ -593,7 +599,8 @@ end
 -- PLAY ANIMATION
 --==================================================
 
-local function playAnimation(data, frozen, forceNewTrack)
+local function playAnimation(data,frozen,forceNewTrack)
+
     if not Animator or not data or not data.Id then
         return nil,nil
     end
@@ -603,6 +610,7 @@ local function playAnimation(data, frozen, forceNewTrack)
     if forceNewTrack then
         key = makeKey("FROZEN_RUNTIME")
     else
+
         key = data.Key
 
         if not key then
@@ -616,9 +624,10 @@ local function playAnimation(data, frozen, forceNewTrack)
     end
 
     local animation = Instance.new("Animation")
-    animation.AnimationId = "rbxassetid://" .. tostring(data.Id)
+    animation.AnimationId =
+        "rbxassetid://" .. tostring(data.Id)
 
-    local success, track = pcall(function()
+    local success,track = pcall(function()
         return Animator:LoadAnimation(animation)
     end)
 
@@ -635,6 +644,7 @@ local function playAnimation(data, frozen, forceNewTrack)
     local endTime = tonumber(data.End) or 0
 
     track.Looped = false
+
     track:Play(getFadeIn())
 
     task.wait()
@@ -645,20 +655,24 @@ local function playAnimation(data, frozen, forceNewTrack)
         end)
     end
 
+    data.IsReverse = false
+
     if frozen then
+
         track:AdjustSpeed(0)
         data.IsFrozen = true
+
     else
+
         track:AdjustSpeed(getSpeed())
         data.IsFrozen = false
     end
 
-    data.IsReverse = false
-
     activeTracks[key] = track
     activeData[key] = data
 
-    trackConnections[key] = RunService.Heartbeat:Connect(function(dt)
+    trackConnections[key] =
+        RunService.Heartbeat:Connect(function(dt)
 
         if activeTracks[key] ~= track then
             disconnectTrack(key)
@@ -666,46 +680,61 @@ local function playAnimation(data, frozen, forceNewTrack)
         end
 
         --==================================================
-        -- REVERSE MODE
+        -- REVERSE LOOP
         --==================================================
 
         if data.IsReverse then
+
             local reverseSpeed = getReverseSpeed()
 
             local current = track.TimePosition
-            local newPosition = current - (dt * reverseSpeed)
 
-            if endTime > 0 then
-                if newPosition <= startTime then
-                    newPosition = endTime
-                end
+            local lowerLimit = startTime
+            local upperLimit = endTime
 
-                newPosition = math.clamp(newPosition, startTime, endTime)
-            else
-                if newPosition <= 0 then
-                    local length = track.Length
+            if upperLimit <= lowerLimit then
 
-                    if length and length > 0 then
-                        newPosition = length
-                    else
-                        newPosition = 0
-                    end
+                local length = track.Length
+
+                if length and length > 0 then
+                    upperLimit = length
+                else
+                    upperLimit = lowerLimit + 1
                 end
             end
 
+            local newPosition =
+                current - (dt * reverseSpeed)
+
+            if newPosition <= lowerLimit then
+                newPosition = upperLimit
+            end
+
+            newPosition =
+                math.clamp(
+                    newPosition,
+                    lowerLimit,
+                    upperLimit
+                )
+
             pcall(function()
+
                 track:AdjustSpeed(0)
-                track.TimePosition = newPosition
+
+                track.TimePosition =
+                    newPosition
+
             end)
 
             return
         end
 
         --==================================================
-        -- FROZEN MODE
+        -- FROZEN
         --==================================================
 
         if data.IsFrozen then
+
             pcall(function()
                 track:AdjustSpeed(0)
             end)
@@ -714,10 +743,11 @@ local function playAnimation(data, frozen, forceNewTrack)
         end
 
         --==================================================
-        -- NORMAL MODE
+        -- NORMAL
         --==================================================
 
-        if endTime > 0 and track.TimePosition >= endTime then
+        if endTime > 0
+            and track.TimePosition >= endTime then
 
             pcall(function()
                 track.TimePosition = startTime
@@ -743,10 +773,11 @@ local function playAnimation(data, frozen, forceNewTrack)
 end
 
 --==================================================
--- REVERSE ANIMATION
+-- START REVERSE
 --==================================================
 
 local function startReverse(data)
+
     if not data then
         return false
     end
@@ -760,45 +791,100 @@ local function startReverse(data)
 
     local track = activeTracks[key]
 
+    --==================================================
+    -- إذا ما كانت شغالة، شغلها تلقائيًا
+    --==================================================
+
     if not track then
+
         data.IsFrozen = false
         data.IsReverse = false
 
-        track = playAnimation(data, false, false)
+        track =
+            playAnimation(
+                data,
+                false,
+                false
+            )
     end
 
     if not track then
         return false
     end
 
-    data.IsFrozen = false
-    data.IsReverse = true
+    local startTime =
+        tonumber(data.Start) or 0
+
+    local endTime =
+        tonumber(data.End) or 0
+
+    local current =
+        track.TimePosition
+
+    --==================================================
+    -- تحديد نقطة البداية للـ Reverse
+    --==================================================
+
+    if endTime > startTime then
+
+        -- إذا كانت الحركة واقفة أو في البداية
+        -- يبدأ Reverse من نهاية الجزء
+        if current <= startTime + 0.01
+            or current >= endTime - 0.01 then
+
+            current = endTime
+        end
+
+    else
+
+        local length = track.Length
+
+        if length and length > 0 then
+            current = length
+        end
+    end
 
     pcall(function()
+        track.TimePosition = current
         track:AdjustSpeed(0)
     end)
 
+    data.IsFrozen = false
+    data.IsReverse = true
+
     status(
-        "Reverse ON | سرعة "
-        .. string.format("%.2f", getReverseSpeed())
+        "Reverse LOOP ON | "
+        .. string.format(
+            "%.2f",
+            getReverseSpeed()
+        )
         .. "x"
     )
 
     return true
 end
 
+--==================================================
+-- STOP REVERSE
+--==================================================
+
 local function stopReverse(data)
+
     if not data then
         return
     end
 
     data.IsReverse = false
 
-    local track = activeTracks[data.Key]
+    local track =
+        activeTracks[data.Key]
 
     if track then
+
         pcall(function()
-            track:AdjustSpeed(getSpeed())
+            track:AdjustSpeed(
+                getSpeed()
+            )
         end)
     end
 
@@ -806,69 +892,48 @@ local function stopReverse(data)
 end
 
 --==================================================
--- SPEED APPLY
+-- SPEED
 --==================================================
 
 local function applySpeed()
+
     local speed = getSpeed()
 
-    for key, track in pairs(activeTracks) do
-        local data = activeData[key]
+    for key,track in pairs(activeTracks) do
 
-        if track and data and not data.IsFrozen and not data.IsReverse then
+        local data =
+            activeData[key]
+
+        if track
+            and data
+            and not data.IsFrozen
+            and not data.IsReverse then
+
             pcall(function()
                 track:AdjustSpeed(speed)
             end)
         end
     end
 
-    status("السرعة: " .. tostring(speed) .. "x")
+    status(
+        "السرعة: "
+        .. tostring(speed)
+        .. "x"
+    )
 end
 
 SpeedInput.FocusLost:Connect(applySpeed)
 
-SpeedInput:GetPropertyChangedSignal("Text"):Connect(function()
-    if SpeedInput:IsFocused() and tonumber(SpeedInput.Text) then
-        applySpeed()
-    end
-end)
-
 --==================================================
--- REVERSE SPEED APPLY
---==================================================
-
-ReverseSpeedInput.FocusLost:Connect(function()
-    local speed = getReverseSpeed()
-
-    for _, data in pairs(activeData) do
-        if data and data.IsReverse then
-            status("Reverse Speed: " .. tostring(speed) .. "x")
-            break
-        end
-    end
-end)
-
-ReverseSpeedInput:GetPropertyChangedSignal("Text"):Connect(function()
-    if ReverseSpeedInput:IsFocused() and tonumber(ReverseSpeedInput.Text) then
-        local speed = getReverseSpeed()
-
-        for _, data in pairs(activeData) do
-            if data and data.IsReverse then
-                status("Reverse Speed: " .. tostring(speed) .. "x")
-                break
-            end
-        end
-    end
-end)
-
---==================================================
--- SPAM FREEZE
+-- SPAM
 --==================================================
 
 local function stopSpam(key)
+
     spamLoops[key] = nil
 
-    local data = activeData[key]
+    local data =
+        activeData[key]
 
     if data then
         data.Spam = false
@@ -876,6 +941,7 @@ local function stopSpam(key)
 end
 
 local function startSpam(data)
+
     local key = data.Key
 
     if spamLoops[key] then
@@ -890,47 +956,74 @@ local function startSpam(data)
 
         while spamLoops[key] do
 
-            local frozenTime = tonumber(data.FrozenTime) or 0
+            local frozenTime =
+                tonumber(data.FrozenTime)
+                or 0
 
             data.IsFrozen = false
             data.IsReverse = false
 
-            local track = activeTracks[key]
+            local track =
+                activeTracks[key]
 
             if not track then
-                track = playAnimation(data, false, false)
+                track =
+                    playAnimation(
+                        data,
+                        false,
+                        false
+                    )
             end
 
             if track then
 
                 pcall(function()
+
                     track:Play(0)
-                    track.TimePosition = frozenTime
-                    track:AdjustSpeed(getSpeed())
+
+                    track.TimePosition =
+                        frozenTime
+
+                    track:AdjustSpeed(
+                        getSpeed()
+                    )
                 end)
 
-                task.wait(1 / getSpamSpeed())
+                task.wait(
+                    1 / getSpamSpeed()
+                )
 
                 if not spamLoops[key] then
                     break
                 end
 
                 pcall(function()
-                    track.TimePosition = frozenTime
+
+                    track.TimePosition =
+                        frozenTime
+
                     track:AdjustSpeed(0)
                 end)
 
                 data.IsFrozen = true
 
-                task.wait(1 / getSpamSpeed())
+                task.wait(
+                    1 / getSpamSpeed()
+                )
             end
         end
 
-        local track = activeTracks[key]
+        local track =
+            activeTracks[key]
 
         if track then
+
             pcall(function()
-                track.TimePosition = tonumber(data.FrozenTime) or 0
+
+                track.TimePosition =
+                    tonumber(data.FrozenTime)
+                    or 0
+
                 track:AdjustSpeed(0)
             end)
         end
@@ -950,43 +1043,77 @@ FreezeTopBtn.MouseButton1Click:Connect(function()
 
     local found = false
 
-    for key, track in pairs(activeTracks) do
+    for key,track in pairs(activeTracks) do
 
-        local data = activeData[key]
+        local data =
+            activeData[key]
 
         if data and track then
 
             data.IsFrozen = true
             data.IsReverse = false
-            data.FrozenTime = track.TimePosition
+
+            data.FrozenTime =
+                track.TimePosition
 
             pcall(function()
                 track:AdjustSpeed(0)
             end)
 
-            table.insert(frozenAnimations, {
-                Key = makeKey("FREEZE"),
-                Name = data.Name or ("Frozen_" .. tostring(#frozenAnimations + 1)),
-                Id = tostring(data.Id),
-                Start = tonumber(data.Start) or 0,
-                End = tonumber(data.End) or 0,
-                FrozenTime = data.FrozenTime,
-                IsFrozen = true,
-                Spam = false
-            })
+            table.insert(
+                frozenAnimations,
+                {
+                    Key = makeKey("FREEZE"),
+
+                    Name =
+                        data.Name
+                        or (
+                            "Frozen_"
+                            .. tostring(
+                                #frozenAnimations + 1
+                            )
+                        ),
+
+                    Id = tostring(data.Id),
+
+                    Start =
+                        tonumber(data.Start)
+                        or 0,
+
+                    End =
+                        tonumber(data.End)
+                        or 0,
+
+                    FrozenTime =
+                        data.FrozenTime,
+
+                    IsFrozen = true,
+
+                    Spam = false,
+
+                    IsReverse = false
+                }
+            )
 
             found = true
         end
     end
 
     if found then
-        saveData(FREEZE_FILE, frozenAnimations)
+
+        saveData(
+            FREEZE_FILE,
+            frozenAnimations
+        )
+
         status("تم تجميد وحفظ الكل")
 
         task.defer(function()
             refreshFreezeList()
         end)
+
     else
+
         status("لا يوجد أنيميشن")
     end
 end)
@@ -999,17 +1126,21 @@ local function unfreezeAll()
 
     local found = false
 
-    for key, data in pairs(activeData) do
+    for key,data in pairs(activeData) do
 
         if data and data.IsFrozen then
 
             data.IsFrozen = false
 
-            local track = activeTracks[key]
+            local track =
+                activeTracks[key]
 
             if track then
+
                 pcall(function()
-                    track:AdjustSpeed(getSpeed())
+                    track:AdjustSpeed(
+                        getSpeed()
+                    )
                 end)
             end
 
@@ -1032,7 +1163,7 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 --==================================================
--- TABS SWITCHING
+-- TABS
 --==================================================
 
 Tab1Btn.MouseButton1Click:Connect(function()
@@ -1046,8 +1177,11 @@ Tab1Btn.MouseButton1Click:Connect(function()
     SearchFreezeBox.Visible = false
     SearchFreezeBtn.Visible = false
 
-    Tab1Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    Tab2Btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+    Tab1Btn.BackgroundColor3 =
+        Color3.fromRGB(50,50,50)
+
+    Tab2Btn.BackgroundColor3 =
+        Color3.fromRGB(35,35,35)
 end)
 
 Tab2Btn.MouseButton1Click:Connect(function()
@@ -1061,8 +1195,11 @@ Tab2Btn.MouseButton1Click:Connect(function()
     SearchFreezeBox.Visible = true
     SearchFreezeBtn.Visible = true
 
-    Tab1Btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-    Tab2Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    Tab1Btn.BackgroundColor3 =
+        Color3.fromRGB(35,35,35)
+
+    Tab2Btn.BackgroundColor3 =
+        Color3.fromRGB(50,50,50)
 end)
 
 --==================================================
@@ -1075,8 +1212,10 @@ StopAllBtn.MouseButton1Click:Connect(function()
         spamLoops[key] = nil
     end
 
-    for _, data in pairs(activeData) do
+    for _,data in pairs(activeData) do
+
         if data then
+
             data.IsReverse = false
             data.IsFrozen = false
             data.Spam = false
@@ -1087,7 +1226,7 @@ StopAllBtn.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
--- REFRESH DECLARATION
+-- REFRESH DECLARATIONS
 --==================================================
 
 local refreshRDBList
@@ -1099,32 +1238,49 @@ local refreshFreezeList
 
 refreshRDBList = function()
 
-    for _, child in ipairs(ScrollRDB:GetChildren()) do
+    for _,child in ipairs(
+        ScrollRDB:GetChildren()
+    ) do
+
         if child:IsA("Frame") then
             child:Destroy()
         end
     end
 
-    local searchText = SearchBox.Text:lower()
+    local searchText =
+        SearchBox.Text:lower()
 
-    for index, data in ipairs(savedAnimations) do
+    for index,data in ipairs(
+        savedAnimations
+    ) do
 
         if not data.Key then
             data.Key = makeKey("RDB")
         end
 
-        local name = tostring(
-            data.Name or ("Anim_" .. index)
-        ):lower()
+        local name =
+            tostring(
+                data.Name
+                or ("Anim_" .. index)
+            ):lower()
 
-        local id = tostring(
-            data.Id or ""
-        ):lower()
+        local id =
+            tostring(
+                data.Id or ""
+            ):lower()
 
         local matches =
             searchText == ""
-            or name:find(searchText,1,true)
-            or id:find(searchText,1,true)
+            or name:find(
+                searchText,
+                1,
+                true
+            )
+            or id:find(
+                searchText,
+                1,
+                true
+            )
 
         if not matches then
             continue
@@ -1134,45 +1290,99 @@ refreshRDBList = function()
         -- ITEM
         --==================================================
 
-        local Item = Instance.new("Frame")
+        local Item =
+            Instance.new("Frame")
+
         Item.Parent = ScrollRDB
-        Item.Size = UDim2.new(1,-10,0,70)
-        Item.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+        Item.Size =
+            UDim2.new(
+                1,-10,
+                0,70
+            )
+
+        Item.BackgroundColor3 =
+            Color3.fromRGB(40,40,40)
+
         Item.BorderSizePixel = 0
 
         --==================================================
         -- NAME
         --==================================================
 
-        local NameBox = Instance.new("TextBox")
+        local NameBox =
+            Instance.new("TextBox")
+
         NameBox.Parent = Item
-        NameBox.Size = UDim2.new(0,110,0,28)
-        NameBox.Position = UDim2.new(0.01,0,0.08,0)
-        NameBox.Text = data.Name or ("Anim_" .. index)
-        NameBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        NameBox.TextColor3 = Color3.fromRGB(255,255,255)
+
+        NameBox.Size =
+            UDim2.new(
+                0,105,
+                0,28
+            )
+
+        NameBox.Position =
+            UDim2.new(
+                0.01,0,
+                0.08,0
+            )
+
+        NameBox.Text =
+            data.Name
+            or ("Anim_" .. index)
+
+        NameBox.BackgroundColor3 =
+            Color3.fromRGB(50,50,50)
+
+        NameBox.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
         NameBox.BorderSizePixel = 0
+
         NameBox.ClearTextOnFocus = false
-        NameBox.TextSize = 12
+
+        NameBox.TextSize = 11
 
         --==================================================
         -- EDIT
         --==================================================
 
-        local EditBtn = Instance.new("TextButton")
+        local EditBtn =
+            Instance.new("TextButton")
+
         EditBtn.Parent = Item
-        EditBtn.Size = UDim2.new(0,50,0,28)
-        EditBtn.Position = UDim2.new(0.22,0,0.08,0)
+
+        EditBtn.Size =
+            UDim2.new(
+                0,48,
+                0,28
+            )
+
+        EditBtn.Position =
+            UDim2.new(
+                0.21,0,
+                0.08,0
+            )
+
         EditBtn.Text = "تعديل"
-        EditBtn.BackgroundColor3 = Color3.fromRGB(110,80,180)
-        EditBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+        EditBtn.BackgroundColor3 =
+            Color3.fromRGB(110,80,180)
+
+        EditBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
         EditBtn.BorderSizePixel = 0
 
         EditBtn.MouseButton1Click:Connect(function()
 
-            data.Name = NameBox.Text
+            data.Name =
+                NameBox.Text
 
-            saveData(RDB_FILE,savedAnimations)
+            saveData(
+                RDB_FILE,
+                savedAnimations
+            )
 
             status("تم تعديل الاسم")
         end)
@@ -1181,13 +1391,31 @@ refreshRDBList = function()
         -- PLAY
         --==================================================
 
-        local PlayBtn = Instance.new("TextButton")
+        local PlayBtn =
+            Instance.new("TextButton")
+
         PlayBtn.Parent = Item
-        PlayBtn.Size = UDim2.new(0,55,0,28)
-        PlayBtn.Position = UDim2.new(0.32,0,0.08,0)
+
+        PlayBtn.Size =
+            UDim2.new(
+                0,52,
+                0,28
+            )
+
+        PlayBtn.Position =
+            UDim2.new(
+                0.31,0,
+                0.08,0
+            )
+
         PlayBtn.Text = "تشغيل"
-        PlayBtn.BackgroundColor3 = Color3.fromRGB(0,120,200)
-        PlayBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+        PlayBtn.BackgroundColor3 =
+            Color3.fromRGB(0,120,200)
+
+        PlayBtn.TextColor3 =
+            Color3.fromRGB(255,255,255)
+
         PlayBtn.BorderSizePixel = 0
 
         PlayBtn.MouseButton1Click:Connect(function()
@@ -1195,7 +1423,11 @@ refreshRDBList = function()
             data.IsFrozen = false
             data.IsReverse = false
 
-            playAnimation(data,false,false)
+            playAnimation(
+                data,
+                false,
+                false
+            )
 
             status("تشغيل مستمر")
         end)
@@ -1204,18 +1436,44 @@ refreshRDBList = function()
         -- REVERSE
         --==================================================
 
-        local ReverseBtn = Instance.new("TextButton")
+        local ReverseBtn =
+            Instance.new("TextButton")
+
         ReverseBtn.Parent = Item
-        ReverseBtn.Size = UDim2.new(0,58,0,28)
-        ReverseBtn.Position = UDim2.new(0.43,0,0.08,0)
-        ReverseBtn.Text = data.IsReverse and "↔ ON" or "↔ Reverse"
+
+        ReverseBtn.Size =
+            UDim2.new(
+                0,65,
+                0,28
+            )
+
+        ReverseBtn.Position =
+            UDim2.new(
+                0.415,0,
+                0.08,0
+            )
+
+        ReverseBtn.Text =
+            data.IsReverse
+            and "↔ ON"
+            or "↔ Reverse"
+
         ReverseBtn.BackgroundColor3 =
             data.IsReverse
-            and Color3.fromRGB(150,80,200)
-            or Color3.fromRGB(95,60,125)
+            and Color3.fromRGB(
+                150,80,200
+            )
+            or Color3.fromRGB(
+                95,60,125
+            )
 
-        ReverseBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        ReverseBtn.TextColor3 =
+            Color3.fromRGB(
+                255,255,255
+            )
+
         ReverseBtn.BorderSizePixel = 0
+
         ReverseBtn.TextSize = 11
 
         ReverseBtn.MouseButton1Click:Connect(function()
@@ -1224,20 +1482,28 @@ refreshRDBList = function()
 
                 stopReverse(data)
 
-                ReverseBtn.Text = "↔ Reverse"
+                ReverseBtn.Text =
+                    "↔ Reverse"
+
                 ReverseBtn.BackgroundColor3 =
-                    Color3.fromRGB(95,60,125)
+                    Color3.fromRGB(
+                        95,60,125
+                    )
 
             else
 
-                local started = startReverse(data)
+                local started =
+                    startReverse(data)
 
                 if started then
 
-                    ReverseBtn.Text = "↔ ON"
-                    ReverseBtn.BackgroundColor3 =
-                        Color3.fromRGB(150,80,200)
+                    ReverseBtn.Text =
+                        "↔ ON"
 
+                    ReverseBtn.BackgroundColor3 =
+                        Color3.fromRGB(
+                            150,80,200
+                        )
                 end
             end
         end)
@@ -1246,26 +1512,54 @@ refreshRDBList = function()
         -- FREEZE
         --==================================================
 
-        local FreezeBtn = Instance.new("TextButton")
+        local FreezeBtn =
+            Instance.new("TextButton")
+
         FreezeBtn.Parent = Item
-        FreezeBtn.Size = UDim2.new(0,55,0,28)
-        FreezeBtn.Position = UDim2.new(0.54,0,0.08,0)
+
+        FreezeBtn.Size =
+            UDim2.new(
+                0,55,
+                0,28
+            )
+
+        FreezeBtn.Position =
+            UDim2.new(
+                0.545,0,
+                0.08,0
+            )
+
         FreezeBtn.Text = "تجميد"
-        FreezeBtn.BackgroundColor3 = Color3.fromRGB(0,150,150)
-        FreezeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+        FreezeBtn.BackgroundColor3 =
+            Color3.fromRGB(
+                0,150,150
+            )
+
+        FreezeBtn.TextColor3 =
+            Color3.fromRGB(
+                255,255,255
+            )
+
         FreezeBtn.BorderSizePixel = 0
 
         FreezeBtn.MouseButton1Click:Connect(function()
 
             data.IsReverse = false
 
-            local track = activeTracks[data.Key]
+            local track =
+                activeTracks[data.Key]
 
             if not track then
 
                 data.IsFrozen = false
 
-                track = playAnimation(data,false,false)
+                track =
+                    playAnimation(
+                        data,
+                        false,
+                        false
+                    )
             end
 
             if not track then
@@ -1273,30 +1567,62 @@ refreshRDBList = function()
             end
 
             data.IsFrozen = true
-            data.FrozenTime = track.TimePosition
+
+            data.FrozenTime =
+                track.TimePosition
 
             pcall(function()
                 track:AdjustSpeed(0)
             end)
 
-            table.insert(frozenAnimations,{
-                Key = makeKey("FREEZE"),
-                Name = NameBox.Text .. "_Frozen_" .. tostring(#frozenAnimations + 1),
-                Id = tostring(data.Id),
-                Start = tonumber(data.Start) or 0,
-                End = tonumber(data.End) or 0,
-                FrozenTime = data.FrozenTime,
-                IsFrozen = true,
-                Spam = false
-            })
+            table.insert(
+                frozenAnimations,
+                {
+                    Key =
+                        makeKey("FREEZE"),
 
-            saveData(FREEZE_FILE,frozenAnimations)
+                    Name =
+                        NameBox.Text
+                        .. "_Frozen_"
+                        .. tostring(
+                            #frozenAnimations + 1
+                        ),
+
+                    Id =
+                        tostring(data.Id),
+
+                    Start =
+                        tonumber(data.Start)
+                        or 0,
+
+                    End =
+                        tonumber(data.End)
+                        or 0,
+
+                    FrozenTime =
+                        data.FrozenTime,
+
+                    IsFrozen = true,
+
+                    Spam = false,
+
+                    IsReverse = false
+                }
+            )
+
+            saveData(
+                FREEZE_FILE,
+                frozenAnimations
+            )
 
             refreshFreezeList()
 
             status(
-                "تم حفظ نقطة تجميد عند "
-                .. string.format("%.3f",data.FrozenTime)
+                "تم حفظ نقطة التجميد عند "
+                .. string.format(
+                    "%.3f",
+                    data.FrozenTime
+                )
                 .. "s"
             )
         end)
@@ -1305,13 +1631,35 @@ refreshRDBList = function()
         -- DELETE
         --==================================================
 
-        local DelBtn = Instance.new("TextButton")
+        local DelBtn =
+            Instance.new("TextButton")
+
         DelBtn.Parent = Item
-        DelBtn.Size = UDim2.new(0,45,0,28)
-        DelBtn.Position = UDim2.new(0.65,0,0.08,0)
+
+        DelBtn.Size =
+            UDim2.new(
+                0,45,
+                0,28
+            )
+
+        DelBtn.Position =
+            UDim2.new(
+                0.66,0,
+                0.08,0
+            )
+
         DelBtn.Text = "حذف"
-        DelBtn.BackgroundColor3 = Color3.fromRGB(180,40,40)
-        DelBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+        DelBtn.BackgroundColor3 =
+            Color3.fromRGB(
+                180,40,40
+            )
+
+        DelBtn.TextColor3 =
+            Color3.fromRGB(
+                255,255,255
+            )
+
         DelBtn.BorderSizePixel = 0
 
         DelBtn.MouseButton1Click:Connect(function()
@@ -1319,9 +1667,15 @@ refreshRDBList = function()
             stopSpam(data.Key)
             stopTrack(data.Key)
 
-            table.remove(savedAnimations,index)
+            table.remove(
+                savedAnimations,
+                index
+            )
 
-            saveData(RDB_FILE,savedAnimations)
+            saveData(
+                RDB_FILE,
+                savedAnimations
+            )
 
             refreshRDBList()
 
@@ -1332,32 +1686,66 @@ refreshRDBList = function()
         -- INFO
         --==================================================
 
-        local Info = Instance.new("TextLabel")
+        local Info =
+            Instance.new("TextLabel")
+
         Info.Parent = Item
-        Info.Size = UDim2.new(1,-10,0,20)
-        Info.Position = UDim2.new(0.01,0,0.65,0)
+
+        Info.Size =
+            UDim2.new(
+                1,-10,
+                0,20
+            )
+
+        Info.Position =
+            UDim2.new(
+                0.01,0,
+                0.65,0
+            )
+
         Info.BackgroundTransparency = 1
-        Info.TextColor3 = Color3.fromRGB(150,150,150)
-        Info.TextXAlignment = Enum.TextXAlignment.Left
+
+        Info.TextColor3 =
+            Color3.fromRGB(
+                150,150,150
+            )
+
+        Info.TextXAlignment =
+            Enum.TextXAlignment.Left
+
         Info.TextSize = 11
 
-        local startValue = tonumber(data.Start) or 0
-        local endValue = tonumber(data.End) or 0
+        local startValue =
+            tonumber(data.Start)
+            or 0
+
+        local endValue =
+            tonumber(data.End)
+            or 0
 
         Info.Text =
             "ID: "
             .. tostring(data.Id)
             .. " | "
-            .. string.format("%.2f",startValue)
+            .. string.format(
+                "%.2f",
+                startValue
+            )
             .. "s → "
             .. (
                 endValue > 0
-                and string.format("%.2f",endValue) .. "s"
+                and string.format(
+                    "%.2f",
+                    endValue
+                ) .. "s"
                 or "Loop"
             )
     end
 
-    saveData(RDB_FILE,savedAnimations)
+    saveData(
+        RDB_FILE,
+        savedAnimations
+    )
 end
 
 --==================================================
@@ -1380,19 +1768,30 @@ SearchBtn.MouseButton1Click:Connect(function()
     end
 
     local text =
-        SearchBox.Text:match("^%s*(.-)%s*$")
+        SearchBox.Text:match(
+            "^%s*(.-)%s*$"
+        )
 
     if text == "" then
-        status("اكتب اسم الرقصة أو ID")
+
+        status(
+            "اكتب اسم الرقصة أو ID"
+        )
+
         return
     end
 
     searchActive = true
-    SearchBtn.Text = "مسح البحث"
+
+    SearchBtn.Text =
+        "مسح البحث"
 
     refreshRDBList()
 
-    status("البحث عن: " .. text)
+    status(
+        "البحث عن: "
+        .. text
+    )
 end)
 
 SearchBox.FocusLost:Connect(function(enterPressed)
@@ -1411,30 +1810,46 @@ SearchFreezeBtn.MouseButton1Click:Connect(function()
     if searchFreezeActive then
 
         searchFreezeActive = false
+
         SearchFreezeBox.Text = ""
-        SearchFreezeBtn.Text = "بحث مجمدات"
+
+        SearchFreezeBtn.Text =
+            "بحث مجمدات"
 
         refreshFreezeList()
 
-        status("تم إلغاء البحث في التجميد")
+        status(
+            "تم إلغاء البحث في التجميد"
+        )
 
         return
     end
 
     local text =
-        SearchFreezeBox.Text:match("^%s*(.-)%s*$")
+        SearchFreezeBox.Text:match(
+            "^%s*(.-)%s*$"
+        )
 
     if text == "" then
-        status("اكتب اسم الحركة المجمدة أو ID")
+
+        status(
+            "اكتب اسم الحركة المجمدة أو ID"
+        )
+
         return
     end
 
     searchFreezeActive = true
-    SearchFreezeBtn.Text = "مسح البحث"
+
+    SearchFreezeBtn.Text =
+        "مسح البحث"
 
     refreshFreezeList()
 
-    status("البحث في التجميد عن: " .. text)
+    status(
+        "البحث في التجميد عن: "
+        .. text
+    )
 end)
 
 SearchFreezeBox.FocusLost:Connect(function(enterPressed)
@@ -1450,7 +1865,9 @@ end)
 
 refreshFreezeList = function()
 
-    for _, child in ipairs(ScrollFreeze:GetChildren()) do
+    for _,child in ipairs(
+        ScrollFreeze:GetChildren()
+    ) do
 
         if child:IsA("Frame") then
             child:Destroy()
@@ -1460,69 +1877,145 @@ refreshFreezeList = function()
     local searchText =
         SearchFreezeBox.Text:lower()
 
-    for index, data in ipairs(frozenAnimations) do
+    for index,data in ipairs(
+        frozenAnimations
+    ) do
 
         if not data.Key then
-            data.Key = makeKey("FREEZE")
+            data.Key =
+                makeKey("FREEZE")
         end
 
         local name =
             tostring(
-                data.Name or ("Frozen_" .. index)
+                data.Name
+                or ("Frozen_" .. index)
             ):lower()
 
         local id =
-            tostring(data.Id or ""):lower()
+            tostring(
+                data.Id or ""
+            ):lower()
 
         local matches =
             searchText == ""
-            or name:find(searchText,1,true)
-            or id:find(searchText,1,true)
+            or name:find(
+                searchText,
+                1,
+                true
+            )
+            or id:find(
+                searchText,
+                1,
+                true
+            )
 
         if not matches then
             continue
         end
 
-        local Item = Instance.new("Frame")
+        --==================================================
+        -- ITEM
+        --==================================================
+
+        local Item =
+            Instance.new("Frame")
+
         Item.Parent = ScrollFreeze
-        Item.Size = UDim2.new(1,-10,0,80)
-        Item.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+        Item.Size =
+            UDim2.new(
+                1,-10,
+                0,80
+            )
+
+        Item.BackgroundColor3 =
+            Color3.fromRGB(
+                40,40,40
+            )
+
         Item.BorderSizePixel = 0
 
+        --==================================================
         -- NAME
-        local NameBox = Instance.new("TextBox")
+        --==================================================
+
+        local NameBox =
+            Instance.new("TextBox")
+
         NameBox.Parent = Item
-        NameBox.Size = UDim2.new(0,120,0,28)
-        NameBox.Position = UDim2.new(0.01,0,0.08,0)
+
+        NameBox.Size =
+            UDim2.new(
+                0,100,
+                0,28
+            )
+
+        NameBox.Position =
+            UDim2.new(
+                0.01,0,
+                0.08,0
+            )
+
         NameBox.Text =
-            data.Name or ("Frozen_" .. index)
+            data.Name
+            or ("Frozen_" .. index)
 
         NameBox.BackgroundColor3 =
-            Color3.fromRGB(50,50,50)
+            Color3.fromRGB(
+                50,50,50
+            )
 
         NameBox.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         NameBox.BorderSizePixel = 0
+
         NameBox.ClearTextOnFocus = false
 
+        NameBox.TextSize = 11
+
+        --==================================================
         -- EDIT
-        local EditBtn = Instance.new("TextButton")
+        --==================================================
+
+        local EditBtn =
+            Instance.new("TextButton")
+
         EditBtn.Parent = Item
-        EditBtn.Size = UDim2.new(0,55,0,28)
-        EditBtn.Position = UDim2.new(0.25,0,0.08,0)
+
+        EditBtn.Size =
+            UDim2.new(
+                0,50,
+                0,28
+            )
+
+        EditBtn.Position =
+            UDim2.new(
+                0.21,0,
+                0.08,0
+            )
+
         EditBtn.Text = "تعديل"
+
         EditBtn.BackgroundColor3 =
-            Color3.fromRGB(110,80,180)
+            Color3.fromRGB(
+                110,80,180
+            )
 
         EditBtn.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         EditBtn.BorderSizePixel = 0
 
         EditBtn.MouseButton1Click:Connect(function()
 
-            data.Name = NameBox.Text
+            data.Name =
+                NameBox.Text
 
             saveData(
                 FREEZE_FILE,
@@ -1532,29 +2025,70 @@ refreshFreezeList = function()
             status("تم تعديل الاسم")
         end)
 
+        --==================================================
         -- PLAY FROZEN
-        local PlayBtn = Instance.new("TextButton")
+        --==================================================
+
+        local PlayBtn =
+            Instance.new("TextButton")
+
         PlayBtn.Parent = Item
-        PlayBtn.Size = UDim2.new(0,70,0,28)
-        PlayBtn.Position = UDim2.new(0.37,0,0.08,0)
-        PlayBtn.Text = "تشغيل مجمد"
+
+        PlayBtn.Size =
+            UDim2.new(
+                0,70,
+                0,28
+            )
+
+        PlayBtn.Position =
+            UDim2.new(
+                0.31,0,
+                0.08,0
+            )
+
+        PlayBtn.Text =
+            "تشغيل مجمد"
+
         PlayBtn.BackgroundColor3 =
-            Color3.fromRGB(0,120,200)
+            Color3.fromRGB(
+                0,120,200
+            )
 
         PlayBtn.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         PlayBtn.BorderSizePixel = 0
 
         PlayBtn.MouseButton1Click:Connect(function()
 
             local frozenData = {
-                Key = makeKey("FROZEN_PLAY"),
-                Id = tostring(data.Id),
-                Start = tonumber(data.Start) or 0,
-                End = tonumber(data.End) or 0,
-                FrozenTime = tonumber(data.FrozenTime) or 0,
+
+                Key =
+                    makeKey(
+                        "FROZEN_PLAY"
+                    ),
+
+                Id =
+                    tostring(data.Id),
+
+                Start =
+                    tonumber(data.Start)
+                    or 0,
+
+                End =
+                    tonumber(data.End)
+                    or 0,
+
+                FrozenTime =
+                    tonumber(
+                        data.FrozenTime
+                    )
+                    or 0,
+
                 IsFrozen = true,
+
                 IsReverse = false
             }
 
@@ -1575,16 +2109,201 @@ refreshFreezeList = function()
                 track:AdjustSpeed(0)
 
                 status(
-                    "تم تشغيل مجمد جديد فوق السابق"
+                    "تم تشغيل مجمد جديد"
                 )
             end
         end)
 
+        --==================================================
+        -- REVERSE FROZEN
+        --==================================================
+
+        local ReverseBtn =
+            Instance.new("TextButton")
+
+        ReverseBtn.Parent = Item
+
+        ReverseBtn.Size =
+            UDim2.new(
+                0,65,
+                0,28
+            )
+
+        ReverseBtn.Position =
+            UDim2.new(
+                0.44,0,
+                0.08,0
+            )
+
+        ReverseBtn.Text =
+            data.IsReverse
+            and "↔ ON"
+            or "↔ Reverse"
+
+        ReverseBtn.BackgroundColor3 =
+            data.IsReverse
+            and Color3.fromRGB(
+                150,80,200
+            )
+            or Color3.fromRGB(
+                95,60,125
+            )
+
+        ReverseBtn.TextColor3 =
+            Color3.fromRGB(
+                255,255,255
+            )
+
+        ReverseBtn.BorderSizePixel = 0
+
+        ReverseBtn.TextSize = 11
+
+        ReverseBtn.MouseButton1Click:Connect(function()
+
+            --==================================================
+            -- OFF
+            --==================================================
+
+            if data.IsReverse then
+
+                stopReverse(data)
+
+                ReverseBtn.Text =
+                    "↔ Reverse"
+
+                ReverseBtn.BackgroundColor3 =
+                    Color3.fromRGB(
+                        95,60,125
+                    )
+
+                return
+            end
+
+            --==================================================
+            -- CREATE FROZEN REVERSE TRACK
+            --==================================================
+
+            local runtimeData = {
+
+                Key =
+                    makeKey(
+                        "FROZEN_REVERSE"
+                    ),
+
+                Id =
+                    tostring(data.Id),
+
+                Start =
+                    tonumber(data.Start)
+                    or 0,
+
+                End =
+                    tonumber(data.End)
+                    or 0,
+
+                FrozenTime =
+                    tonumber(
+                        data.FrozenTime
+                    )
+                    or 0,
+
+                IsFrozen = false,
+
+                IsReverse = true,
+
+                Name =
+                    data.Name
+                    or "Frozen Reverse"
+            }
+
+            local track =
+                playAnimation(
+                    runtimeData,
+                    false,
+                    true
+                )
+
+            if not track then
+                return
+            end
+
+            --==================================================
+            -- START FROM FROZEN TIME
+            --==================================================
+
+            local frozenTime =
+                tonumber(
+                    data.FrozenTime
+                )
+                or 0
+
+            local startTime =
+                tonumber(data.Start)
+                or 0
+
+            local endTime =
+                tonumber(data.End)
+                or 0
+
+            if endTime > startTime then
+
+                frozenTime =
+                    math.clamp(
+                        frozenTime,
+                        startTime,
+                        endTime
+                    )
+
+            end
+
+            runtimeData.IsReverse = true
+
+            pcall(function()
+
+                track.TimePosition =
+                    frozenTime
+
+                track:AdjustSpeed(0)
+            end)
+
+            ReverseBtn.Text =
+                "↔ ON"
+
+            ReverseBtn.BackgroundColor3 =
+                Color3.fromRGB(
+                    150,80,200
+                )
+
+            status(
+                "Frozen Reverse LOOP ON | "
+                .. string.format(
+                    "%.2f",
+                    getReverseSpeed()
+                )
+                .. "x"
+            )
+        end)
+
+        --==================================================
         -- SPAM
-        local SpamBtn = Instance.new("TextButton")
+        --==================================================
+
+        local SpamBtn =
+            Instance.new("TextButton")
+
         SpamBtn.Parent = Item
-        SpamBtn.Size = UDim2.new(0,70,0,28)
-        SpamBtn.Position = UDim2.new(0.50,0,0.08,0)
+
+        SpamBtn.Size =
+            UDim2.new(
+                0,65,
+                0,28
+            )
+
+        SpamBtn.Position =
+            UDim2.new(
+                0.57,0,
+                0.08,0
+            )
 
         SpamBtn.Text =
             spamLoops[data.Key]
@@ -1593,11 +2312,17 @@ refreshFreezeList = function()
 
         SpamBtn.BackgroundColor3 =
             spamLoops[data.Key]
-            and Color3.fromRGB(40,160,70)
-            or Color3.fromRGB(90,90,90)
+            and Color3.fromRGB(
+                40,160,70
+            )
+            or Color3.fromRGB(
+                90,90,90
+            )
 
         SpamBtn.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         SpamBtn.BorderSizePixel = 0
 
@@ -1607,9 +2332,13 @@ refreshFreezeList = function()
 
                 stopSpam(data.Key)
 
-                SpamBtn.Text = "Spam OFF"
+                SpamBtn.Text =
+                    "Spam OFF"
+
                 SpamBtn.BackgroundColor3 =
-                    Color3.fromRGB(90,90,90)
+                    Color3.fromRGB(
+                        90,90,90
+                    )
 
                 status("Spam OFF")
 
@@ -1623,32 +2352,61 @@ refreshFreezeList = function()
 
                 if started then
 
-                    SpamBtn.Text = "Spam ON"
+                    SpamBtn.Text =
+                        "Spam ON"
 
                     SpamBtn.BackgroundColor3 =
-                        Color3.fromRGB(40,160,70)
+                        Color3.fromRGB(
+                            40,160,70
+                        )
 
                     status(
                         "Spam Freeze ON | سرعة "
-                        .. tostring(getSpamSpeed())
+                        .. tostring(
+                            getSpamSpeed()
+                        )
                     )
                 end
             end
         end)
 
+        --==================================================
         -- UNFREEZE
-        local UnfreezeBtn = Instance.new("TextButton")
+        --==================================================
+
+        local UnfreezeBtn =
+            Instance.new("TextButton")
+
         UnfreezeBtn.Parent = Item
-        UnfreezeBtn.Size = UDim2.new(0,85,0,28)
-        UnfreezeBtn.Position = UDim2.new(0.64,0,0.08,0)
-        UnfreezeBtn.Text = "إلغاء التجميد"
+
+        UnfreezeBtn.Size =
+            UDim2.new(
+                0,80,
+                0,28
+            )
+
+        UnfreezeBtn.Position =
+            UDim2.new(
+                0.70,0,
+                0.08,0
+            )
+
+        UnfreezeBtn.Text =
+            "إلغاء التجميد"
+
         UnfreezeBtn.BackgroundColor3 =
-            Color3.fromRGB(40,150,80)
+            Color3.fromRGB(
+                40,150,80
+            )
 
         UnfreezeBtn.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         UnfreezeBtn.BorderSizePixel = 0
+
+        UnfreezeBtn.TextSize = 11
 
         UnfreezeBtn.MouseButton1Click:Connect(function()
 
@@ -1682,23 +2440,46 @@ refreshFreezeList = function()
             )
         end)
 
+        --==================================================
         -- DELETE
-        local DeleteBtn = Instance.new("TextButton")
+        --==================================================
+
+        local DeleteBtn =
+            Instance.new("TextButton")
+
         DeleteBtn.Parent = Item
-        DeleteBtn.Size = UDim2.new(0,45,0,28)
-        DeleteBtn.Position = UDim2.new(0.82,0,0.08,0)
-        DeleteBtn.Text = "حذف"
+
+        DeleteBtn.Size =
+            UDim2.new(
+                0,45,
+                0,28
+            )
+
+        DeleteBtn.Position =
+            UDim2.new(
+                0.83,0,
+                0.08,0
+            )
+
+        DeleteBtn.Text =
+            "حذف"
+
         DeleteBtn.BackgroundColor3 =
-            Color3.fromRGB(180,40,40)
+            Color3.fromRGB(
+                180,40,40
+            )
 
         DeleteBtn.TextColor3 =
-            Color3.fromRGB(255,255,255)
+            Color3.fromRGB(
+                255,255,255
+            )
 
         DeleteBtn.BorderSizePixel = 0
 
         DeleteBtn.MouseButton1Click:Connect(function()
 
             stopSpam(data.Key)
+
             stopTrack(data.Key)
 
             table.remove(
@@ -1718,19 +2499,38 @@ refreshFreezeList = function()
             )
         end)
 
+        --==================================================
         -- INFO
-        local Info = Instance.new("TextLabel")
+        --==================================================
+
+        local Info =
+            Instance.new("TextLabel")
+
         Info.Parent = Item
-        Info.Size = UDim2.new(1,-10,0,20)
-        Info.Position = UDim2.new(0.01,0,0.68,0)
+
+        Info.Size =
+            UDim2.new(
+                1,-10,
+                0,20
+            )
+
+        Info.Position =
+            UDim2.new(
+                0.01,0,
+                0.68,0
+            )
+
         Info.BackgroundTransparency = 1
+
         Info.TextColor3 =
-            Color3.fromRGB(150,150,150)
+            Color3.fromRGB(
+                150,150,150
+            )
 
         Info.TextXAlignment =
             Enum.TextXAlignment.Left
 
-        Info.TextSize = 12
+        Info.TextSize = 11
 
         Info.Text =
             "ID: "
@@ -1738,7 +2538,10 @@ refreshFreezeList = function()
             .. " | Freeze: "
             .. string.format(
                 "%.3f",
-                tonumber(data.FrozenTime) or 0
+                tonumber(
+                    data.FrozenTime
+                )
+                or 0
             )
             .. "s"
     end
@@ -1759,16 +2562,27 @@ PreviewBtn.MouseButton1Click:Connect(function()
         IdInput.Text:match("%d+")
 
     if not id then
-        status("أدخل ID صحيح")
+
+        status(
+            "أدخل ID صحيح"
+        )
+
         return
     end
 
     local data = {
-        Key = makeKey("PREVIEW"),
+
+        Key =
+            makeKey("PREVIEW"),
+
         Id = id,
+
         Start = 0,
+
         End = 0,
+
         IsFrozen = false,
+
         IsReverse = false
     }
 
@@ -1778,7 +2592,9 @@ PreviewBtn.MouseButton1Click:Connect(function()
         false
     )
 
-    status("تشغيل مستمر")
+    status(
+        "تشغيل مستمر"
+    )
 end)
 
 --==================================================
@@ -1791,12 +2607,18 @@ AddBtn.MouseButton1Click:Connect(function()
         IdInput.Text:match("%d+")
 
     if not id then
-        status("أدخل ID صحيح")
+
+        status(
+            "أدخل ID صحيح"
+        )
+
         return
     end
 
     local slice =
-        tonumber(SliceInput.Text)
+        tonumber(
+            SliceInput.Text
+        )
 
     --==================================================
     -- NORMAL ADD
@@ -1804,18 +2626,32 @@ AddBtn.MouseButton1Click:Connect(function()
 
     if not slice or slice <= 0 then
 
-        table.insert(savedAnimations,{
-            Key = makeKey("RDB"),
-            Id = tostring(id),
-            Start = 0,
-            End = 0,
-            Name =
-                "Anim_"
-                .. tostring(#savedAnimations + 1),
-            Loop = true,
-            IsFrozen = false,
-            IsReverse = false
-        })
+        table.insert(
+            savedAnimations,
+            {
+                Key =
+                    makeKey("RDB"),
+
+                Id =
+                    tostring(id),
+
+                Start = 0,
+
+                End = 0,
+
+                Name =
+                    "Anim_"
+                    .. tostring(
+                        #savedAnimations + 1
+                    ),
+
+                Loop = true,
+
+                IsFrozen = false,
+
+                IsReverse = false
+            }
+        )
 
         saveData(
             RDB_FILE,
@@ -1833,7 +2669,7 @@ AddBtn.MouseButton1Click:Connect(function()
     end
 
     --==================================================
-    -- GET LENGTH
+    -- LOAD LENGTH
     --==================================================
 
     local animation =
@@ -1851,7 +2687,11 @@ AddBtn.MouseButton1Click:Connect(function()
         end)
 
     if not success or not temp then
-        status("فشل تحميل الرقصة")
+
+        status(
+            "فشل تحميل الرقصة"
+        )
+
         return
     end
 
@@ -1859,13 +2699,18 @@ AddBtn.MouseButton1Click:Connect(function()
 
     task.wait(0.25)
 
-    local length = temp.Length
+    local length =
+        temp.Length
 
     temp:Stop(0)
     temp:Destroy()
 
     if not length or length <= 0 then
-        status("لم يتم معرفة مدة الرقصة")
+
+        status(
+            "لم يتم معرفة مدة الرقصة"
+        )
+
         return
     end
 
@@ -1886,18 +2731,34 @@ AddBtn.MouseButton1Click:Connect(function()
 
         count += 1
 
-        table.insert(savedAnimations,{
-            Key = makeKey("SLICE"),
-            Id = tostring(id),
-            Start = startTime,
-            End = endTime,
-            Name =
-                "Anim_"
-                .. tostring(#savedAnimations + 1),
-            Loop = true,
-            IsFrozen = false,
-            IsReverse = false
-        })
+        table.insert(
+            savedAnimations,
+            {
+                Key =
+                    makeKey("SLICE"),
+
+                Id =
+                    tostring(id),
+
+                Start =
+                    startTime,
+
+                End =
+                    endTime,
+
+                Name =
+                    "Anim_"
+                    .. tostring(
+                        #savedAnimations + 1
+                    ),
+
+                Loop = true,
+
+                IsFrozen = false,
+
+                IsReverse = false
+            }
+        )
 
         startTime = endTime
 
@@ -1930,7 +2791,9 @@ end)
 refreshRDBList()
 refreshFreezeList()
 
-status("Anim Studio Pro جاهز")
+status(
+    "Anim Studio Pro جاهز"
+)
 
 task.defer(function()
     updateUIScale()
