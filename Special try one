@@ -75,8 +75,34 @@ saveData(RDB_FILE, savedAnimations)
 saveData(FREEZE_FILE, frozenAnimations)
 
 --==================================================
+-- OVERRIDE EXTERNAL ANIMATIONS
+--==================================================
+
+local function stopExternalAnimations()
+    if not Animator then return end
+    
+    local activeTrackSet = {}
+    for _, track in pairs(activeTracks) do
+        if track then activeTrackSet[track] = true end
+    end
+
+    for _, playingTrack in ipairs(Animator:GetPlayingAnimationTracks()) do
+        if not activeTrackSet[playingTrack] then
+            pcall(function()
+                playingTrack:Stop(0)
+            end)
+        end
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if next(activeTracks) ~= nil then
+        stopExternalAnimations()
+    end
+end)
+
+--==================================================
 -- CHARACTER RESPAWN / CHARACTER CHANGE
--- KEEP ACTIVE ANIMATIONS AFTER DEATH
 --==================================================
 
 local respawnGeneration = 0
@@ -86,7 +112,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     respawnGeneration += 1
     local generation = respawnGeneration
 
-    -- حفظ آخر مكان لكل رقصة قبل التخلص من الـTracks القديمة
     for key, track in pairs(activeTracks) do
         local data = activeData[key]
         if data and track and not data.IsFrozen then
@@ -96,12 +121,8 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         end
     end
 
-    -- لا نمسح activeData ولا spamLoops.
-    -- فقط الـTracks والـConnections القديمة مرتبطة بالشخصية السابقة.
     for key, connection in pairs(trackConnections) do
-        pcall(function()
-            connection:Disconnect()
-        end)
+        pcall(function() connection:Disconnect() end)
         trackConnections[key] = nil
     end
 
@@ -117,20 +138,14 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 
     task.spawn(function()
         Humanoid = Character:WaitForChild("Humanoid", 10)
-        if generation ~= respawnGeneration or not Humanoid then
-            return
-        end
+        if generation ~= respawnGeneration or not Humanoid then return end
 
         Animator = Humanoid:WaitForChild("Animator", 10)
-        if generation ~= respawnGeneration or not Animator then
-            return
-        end
+        if generation ~= respawnGeneration or not Animator then return end
 
         task.wait(0.15)
 
-        if generation ~= respawnGeneration then
-            return
-        end
+        if generation ~= respawnGeneration then return end
 
         if restoreActiveAnimations then
             restoreActiveAnimations()
@@ -419,7 +434,7 @@ HintLabel.Parent = TopBar
 HintLabel.Size = UDim2.new(0.96,0,0,20)
 HintLabel.Position = UDim2.new(0.02,0,0.86,0)
 HintLabel.BackgroundTransparency = 1
-HintLabel.Text = "Enter = فك التجميد | المجمدات يمكن تشغيلها فوق بعض"
+HintLabel.Text = "Enter = فك التجميد / البحث | المجمدات يمكن تشغيلها فوق بعض"
 HintLabel.TextColor3 = Color3.fromRGB(130,130,130)
 HintLabel.TextXAlignment = Enum.TextXAlignment.Left
 HintLabel.TextSize = 12
@@ -624,14 +639,19 @@ local function playAnimation(data, frozen, forceNewTrack)
         return nil,nil
     end
 
+    -- إعطاء الرقصة أعلى أولوية وأعلى وزن لتتغلب على جميع رقصات المكان
     pcall(function()
-        track.Priority = Enum.AnimationPriority.Action
+        if Enum.AnimationPriority.Action4 then
+            track.Priority = Enum.AnimationPriority.Action4
+        else
+            track.Priority = Enum.AnimationPriority.Action
+        end
     end)
+
+    stopExternalAnimations()
 
     local startTime = tonumber(data.Start) or 0
     local endTime = tonumber(data.End) or 0
-
-    -- استكمال الرقصة من مكانها السابق بعد الموت/تغيير الشخصية
     local resumeTime = tonumber(data.RuntimeTime)
 
     if frozen then
@@ -645,7 +665,8 @@ local function playAnimation(data, frozen, forceNewTrack)
     track.Looped = false
 
     pcall(function()
-        track:Play(getFadeIn())
+        track:Play(getFadeIn(), 10, 1)
+        track:AdjustWeight(10, 0)
     end)
 
     task.wait()
@@ -672,6 +693,8 @@ local function playAnimation(data, frozen, forceNewTrack)
             return
         end
 
+        pcall(function() track:AdjustWeight(10, 0) end)
+
         if data.IsFrozen then
             pcall(function()
                 if tonumber(data.FrozenTime) then
@@ -682,7 +705,6 @@ local function playAnimation(data, frozen, forceNewTrack)
             return
         end
 
-        -- حفظ الوقت باستمرار حتى نرجع لنفس المكان بعد الموت
         pcall(function()
             data.RuntimeTime = track.TimePosition
         end)
@@ -695,7 +717,8 @@ local function playAnimation(data, frozen, forceNewTrack)
             end)
         elseif not track.IsPlaying then
             pcall(function()
-                track:Play(0)
+                track:Play(0, 10, 1)
+                track:AdjustWeight(10, 0)
             end)
 
             task.wait()
@@ -716,9 +739,7 @@ end
 --==================================================
 
 restoreActiveAnimations = function()
-    if not Animator then
-        return
-    end
+    if not Animator then return end
 
     local restoreList = {}
 
@@ -735,9 +756,7 @@ restoreActiveAnimations = function()
         local key = item.Key
         local data = item.Data
 
-        if activeData[key] ~= data then
-            continue
-        end
+        if activeData[key] ~= data then continue end
 
         local animation = Instance.new("Animation")
         animation.AnimationId = "rbxassetid://" .. tostring(data.Id)
@@ -752,12 +771,15 @@ restoreActiveAnimations = function()
         end
 
         pcall(function()
-            track.Priority = Enum.AnimationPriority.Action
+            if Enum.AnimationPriority.Action4 then
+                track.Priority = Enum.AnimationPriority.Action4
+            else
+                track.Priority = Enum.AnimationPriority.Action
+            end
         end)
 
         local startTime = tonumber(data.Start) or 0
         local endTime = tonumber(data.End) or 0
-
         local resumeTime
 
         if data.IsFrozen then
@@ -766,14 +788,13 @@ restoreActiveAnimations = function()
             resumeTime = tonumber(data.RuntimeTime)
         end
 
-        if resumeTime == nil then
-            resumeTime = startTime
-        end
+        if resumeTime == nil then resumeTime = startTime end
 
         track.Looped = false
 
         pcall(function()
-            track:Play(0)
+            track:Play(0, 10, 1)
+            track:AdjustWeight(10, 0)
         end)
 
         task.wait()
@@ -783,13 +804,9 @@ restoreActiveAnimations = function()
         end)
 
         if data.IsFrozen then
-            pcall(function()
-                track:AdjustSpeed(0)
-            end)
+            pcall(function() track:AdjustSpeed(0) end)
         else
-            pcall(function()
-                track:AdjustSpeed(getSpeed())
-            end)
+            pcall(function() track:AdjustSpeed(getSpeed()) end)
         end
 
         activeTracks[key] = track
@@ -799,6 +816,8 @@ restoreActiveAnimations = function()
                 disconnectTrack(key)
                 return
             end
+
+            pcall(function() track:AdjustWeight(10, 0) end)
 
             if data.IsFrozen then
                 pcall(function()
@@ -810,9 +829,7 @@ restoreActiveAnimations = function()
                 return
             end
 
-            pcall(function()
-                data.RuntimeTime = track.TimePosition
-            end)
+            pcall(function() data.RuntimeTime = track.TimePosition end)
 
             if endTime > 0 and track.TimePosition >= endTime then
                 pcall(function()
@@ -822,7 +839,8 @@ restoreActiveAnimations = function()
                 end)
             elseif not track.IsPlaying then
                 pcall(function()
-                    track:Play(0)
+                    track:Play(0, 10, 1)
+                    track:AdjustWeight(10, 0)
                     track.TimePosition = startTime
                     data.RuntimeTime = startTime
                     track:AdjustSpeed(getSpeed())
@@ -884,7 +902,8 @@ local function startSpam(data)
             end 
             if track then 
                 pcall(function() 
-                    track:Play(0) 
+                    track:Play(0, 10, 1) 
+                    track:AdjustWeight(10, 0)
                     track.TimePosition = frozenTime 
                     track:AdjustSpeed(getSpeed()) 
                 end) 
@@ -970,12 +989,6 @@ local function unfreezeAll()
     end 
 end
 
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.KeypadEnter then 
-        unfreezeAll() 
-    end 
-end)
-
 --==================================================
 -- TABS SWITCHING
 --==================================================
@@ -1001,7 +1014,6 @@ Tab2Btn.MouseButton1Click:Connect(function()
     SearchBtn.Visible = false 
     SearchFreezeBox.Visible = true 
     SearchFreezeBtn.Visible = true 
-    
     Tab1Btn.BackgroundColor3 = Color3.fromRGB(35,35,35) 
     Tab2Btn.BackgroundColor3 = Color3.fromRGB(50,50,50) 
 end)
@@ -1155,10 +1167,10 @@ refreshRDBList = function()
 end
 
 --==================================================
--- SEARCH ACTION (RDB)
+-- SEARCH FUNCTIONS
 --==================================================
 
-SearchBtn.MouseButton1Click:Connect(function()
+local function triggerRDBSearch()
     if searchActive then 
         searchActive = false 
         SearchBox.Text = "" 
@@ -1178,17 +1190,9 @@ SearchBtn.MouseButton1Click:Connect(function()
     SearchBtn.Text = "مسح البحث" 
     refreshRDBList() 
     status("البحث عن: " .. text) 
-end)
+end
 
-SearchBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then SearchBtn:Activate() end 
-end)
-
---==================================================
--- SEARCH ACTION (FREEZE)
---==================================================
-
-SearchFreezeBtn.MouseButton1Click:Connect(function()
+local function triggerFreezeSearch()
     if searchFreezeActive then 
         searchFreezeActive = false 
         SearchFreezeBox.Text = "" 
@@ -1208,10 +1212,34 @@ SearchFreezeBtn.MouseButton1Click:Connect(function()
     SearchFreezeBtn.Text = "مسح البحث" 
     refreshFreezeList() 
     status("البحث في التجميد عن: " .. text) 
+end
+
+SearchBtn.MouseButton1Click:Connect(triggerRDBSearch)
+SearchFreezeBtn.MouseButton1Click:Connect(triggerFreezeSearch)
+
+-- دعم زر Enter لكيبورد الجوال والكمبيوتر
+SearchBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        triggerRDBSearch()
+    end
 end)
 
 SearchFreezeBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then SearchFreezeBtn:Activate() end 
+    if enterPressed then
+        triggerFreezeSearch()
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.KeypadEnter then
+        if SearchBox:IsFocused() then
+            triggerRDBSearch()
+        elseif SearchFreezeBox:IsFocused() then
+            triggerFreezeSearch()
+        else
+            unfreezeAll()
+        end
+    end
 end)
 
 --==================================================
