@@ -1,0 +1,996 @@
+--// LOCAL PERFORMANCE CONTROL (UPDATED VERSION)
+--// Local only
+--// Your character + animations + skins are preserved
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--==================================================
+-- SETTINGS / JSON
+--==================================================
+
+local FILE_NAME = "LocalPerformanceSettings.json"
+
+local Settings = {
+    LowGraphics = false,
+    Players = false,
+    Map = false,
+    Textures = false,
+    Particles = false,
+    Sounds = false,
+    HideTyping = false, -- توجل جديد لإلغاء مؤشر الكتابة/النمش
+    DisableEffects = false, -- توجل جديد لإلغاء التأثيرات (نار، دخان، شرار) دون حذف البارتات
+}
+
+local function loadSettings()
+    if not (readfile and isfile) then
+        return
+    end
+
+    local ok, exists = pcall(function()
+        return isfile(FILE_NAME)
+    end)
+
+    if not ok or not exists then
+        return
+    end
+
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(FILE_NAME))
+    end)
+
+    if success and type(data) == "table" then
+        for key, default in pairs(Settings) do
+            if type(data[key]) == "boolean" then
+                Settings[key] = data[key]
+            else
+                Settings[key] = default
+            end
+        end
+    end
+end
+
+local function saveSettings()
+    if not writefile then
+        return
+    end
+
+    pcall(function()
+        writefile(
+            FILE_NAME,
+            HttpService:JSONEncode(Settings)
+        )
+    end)
+end
+
+loadSettings()
+
+--==================================================
+-- GUI
+--==================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LocalPerformanceControl"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
+
+--==================================================
+-- MAIN WINDOW
+--==================================================
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(285, 430) -- زيادة الطول ليستوعب الخيارات الجديدة
+Main.Position = UDim2.new(0.5, -142, 0.5, -215)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = Main
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(55, 55, 65)
+MainStroke.Thickness = 1
+MainStroke.Parent = Main
+
+--==================================================
+-- DRAG SYSTEM
+--==================================================
+
+local function makeDraggable(object, handle)
+
+    handle = handle or object
+
+    local dragging = false
+    local dragStart
+    local startPos
+
+    handle.InputBegan:Connect(function(input)
+
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            dragStart = input.Position
+            startPos = object.Position
+
+            input.Changed:Connect(function()
+
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+
+        if not dragging then
+            return
+        end
+
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        local delta = input.Position - dragStart
+
+        object.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end)
+end
+
+--==================================================
+-- TOP BAR
+--==================================================
+
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 50)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.fromOffset(15, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Local Performance"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 17
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+makeDraggable(Main, TopBar)
+
+--==================================================
+-- CLOSE BUTTON
+--==================================================
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(34, 34)
+Close.Position = UDim2.new(1, -42, 0, 8)
+Close.BackgroundColor3 = Color3.fromRGB(40, 40, 47)
+Close.BorderSizePixel = 0
+Close.Text = "×"
+Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+Close.TextSize = 23
+Close.Font = Enum.Font.GothamBold
+Close.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 9)
+CloseCorner.Parent = Close
+
+Close.MouseButton1Click:Connect(function()
+    Main.Visible = false
+end)
+
+--==================================================
+-- OPEN / CLOSE BUTTON
+--==================================================
+
+local OpenButton = Instance.new("TextButton")
+OpenButton.Name = "OpenClose"
+OpenButton.Size = UDim2.fromOffset(58, 58)
+OpenButton.Position = UDim2.new(0, 20, 0.5, -29)
+OpenButton.BackgroundColor3 = Color3.fromRGB(23, 23, 28)
+OpenButton.BorderSizePixel = 0
+OpenButton.Text = "⚙"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 26
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenButton
+
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Color = Color3.fromRGB(60, 60, 70)
+OpenStroke.Thickness = 1
+OpenStroke.Parent = OpenButton
+
+makeDraggable(OpenButton)
+
+OpenButton.MouseButton1Click:Connect(function()
+    Main.Visible = not Main.Visible
+end)
+
+--==================================================
+-- SCROLLING CONTENT
+--==================================================
+
+local Content = Instance.new("ScrollingFrame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, -20, 1, -60)
+Content.Position = UDim2.fromOffset(10, 55)
+Content.BackgroundTransparency = 1
+Content.BorderSizePixel = 0
+Content.ScrollBarThickness = 3
+Content.ScrollBarImageTransparency = 0.3
+Content.CanvasSize = UDim2.fromOffset(0, 0)
+Content.Parent = Main
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 7)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.Parent = Content
+
+Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+
+    Content.CanvasSize = UDim2.fromOffset(
+        0,
+        Layout.AbsoluteContentSize.Y + 10
+    )
+
+end)
+
+--==================================================
+-- ORIGINAL VALUES
+--==================================================
+
+local Original = {}
+
+local function remember(instance, property, value)
+
+    if not Original[instance] then
+        Original[instance] = {}
+    end
+
+    if Original[instance][property] == nil then
+        Original[instance][property] = value
+    end
+end
+
+local function restore(instance)
+
+    local data = Original[instance]
+
+    if not data then
+        return
+    end
+
+    for property, value in pairs(data) do
+
+        pcall(function()
+            instance[property] = value
+        end)
+
+    end
+end
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function isMyCharacter(instance)
+
+    local character = LocalPlayer.Character
+
+    return character
+        and instance:IsDescendantOf(character)
+end
+
+local function isOtherPlayerCharacter(instance)
+
+    local model = instance:FindFirstAncestorOfClass("Model")
+
+    if not model then
+        return false
+    end
+
+    local player = Players:GetPlayerFromCharacter(model)
+
+    return player ~= nil and player ~= LocalPlayer
+end
+
+local function isMapObject(instance)
+
+    if isMyCharacter(instance) then
+        return false
+    end
+
+    if isOtherPlayerCharacter(instance) then
+        return false
+    end
+
+    return true
+end
+
+--==================================================
+-- LOW GRAPHICS (MAP ONLY - PRESERVES SKINS & ANIMS)
+--==================================================
+
+local function applyLowGraphics(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        -- الحفاظ الكامل على شخصيتك وباقي اللاعبين
+        if not isMyCharacter(object) then
+
+            if isOtherPlayerCharacter(object) then
+
+                if object:IsA("BasePart") then
+
+                    remember(
+                        object,
+                        "CastShadow",
+                        object.CastShadow
+                    )
+
+                    if enabled then
+                        object.CastShadow = false
+                    else
+                        restore(object)
+                    end
+
+                end
+
+            -- الخريطة فقط يتم تقليل جودتها
+            elseif isMapObject(object) then
+
+                if object:IsA("BasePart") then
+
+                    remember(
+                        object,
+                        "CastShadow",
+                        object.CastShadow
+                    )
+
+                    remember(
+                        object,
+                        "Material",
+                        object.Material
+                    )
+
+                    if enabled then
+
+                        object.CastShadow = false
+                        object.Material = Enum.Material.SmoothPlastic
+
+                    else
+
+                        restore(object)
+
+                    end
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- PLAYERS
+--==================================================
+
+local function applyPlayers(enabled)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+
+        if player ~= LocalPlayer and player.Character then
+
+            for _, object in ipairs(player.Character:GetDescendants()) do
+
+                if object:IsA("BasePart") then
+
+                    remember(
+                        object,
+                        "LocalTransparencyModifier",
+                        object.LocalTransparencyModifier
+                    )
+
+                    if enabled then
+                        object.LocalTransparencyModifier = 1
+                    else
+                        restore(object)
+                    end
+
+                elseif object:IsA("Decal")
+                or object:IsA("Texture") then
+
+                    remember(
+                        object,
+                        "Transparency",
+                        object.Transparency
+                    )
+
+                    if enabled then
+                        object.Transparency = 1
+                    else
+                        restore(object)
+                    end
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- MAP
+--==================================================
+
+local function applyMap(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        if isMapObject(object) then
+
+            if object:IsA("BasePart") then
+
+                remember(
+                    object,
+                    "LocalTransparencyModifier",
+                    object.LocalTransparencyModifier
+                )
+
+                if enabled then
+                    object.LocalTransparencyModifier = 1
+                else
+                    restore(object)
+                end
+
+            elseif object:IsA("Decal")
+            or object:IsA("Texture") then
+
+                remember(
+                    object,
+                    "Transparency",
+                    object.Transparency
+                )
+
+                if enabled then
+                    object.Transparency = 1
+                else
+                    restore(object)
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- TEXTURES (EXCLUDES PLAYER SKINS & CHARACTERS)
+--==================================================
+
+local function applyTextures(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        -- يتجاهل شخصيتك وشخصيات اللاعبين الآخرين لعدم تخريب السكنات
+        if not isMyCharacter(object) and not isOtherPlayerCharacter(object) then
+
+            if object:IsA("Decal")
+            or object:IsA("Texture") then
+
+                remember(
+                    object,
+                    "Transparency",
+                    object.Transparency
+                )
+
+                if enabled then
+                    object.Transparency = 1
+                else
+                    restore(object)
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- PARTICLES / TRAILS / BEAMS
+--==================================================
+
+local function applyParticles(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        if not isMyCharacter(object) then
+
+            if object:IsA("ParticleEmitter")
+            or object:IsA("Trail")
+            or object:IsA("Beam") then
+
+                remember(
+                    object,
+                    "Enabled",
+                    object.Enabled
+                )
+
+                if enabled then
+                    object.Enabled = false
+                else
+                    restore(object)
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- FIRE / SMOKE / SPARKLES (NEW FEATURE)
+--==================================================
+
+local function applyDisableEffects(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        if not isMyCharacter(object) then
+
+            if object:IsA("Fire")
+            or object:IsA("Smoke")
+            or object:IsA("Sparkles") then
+
+                remember(
+                    object,
+                    "Enabled",
+                    object.Enabled
+                )
+
+                if enabled then
+                    object.Enabled = false
+                else
+                    restore(object)
+                end
+            end
+        end
+    end
+end
+
+--==================================================
+-- HIDE TYPING / BUBBLES (NEW FEATURE)
+--==================================================
+
+local function applyHideTyping(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        if object.Name == "TypingIndicator" or object.Name == "ChatBubble" or object:IsA("BillboardGui") and object.Name:lower():find("typing") then
+
+            remember(
+                object,
+                "Enabled",
+                object.Enabled
+            )
+
+            if enabled then
+                object.Enabled = false
+            else
+                restore(object)
+            end
+        end
+    end
+
+    -- إخفاء فقاعات المحادثة الرسمية
+    pcall(function()
+        game:GetService("Chat"):SetBubbleChatEnabled(not enabled)
+    end)
+end
+
+--==================================================
+-- SOUNDS
+--==================================================
+
+local function applySounds(enabled)
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+
+        if object:IsA("Sound") then
+
+            remember(
+                object,
+                "Volume",
+                object.Volume
+            )
+
+            if enabled then
+                object.Volume = 0
+            else
+                restore(object)
+            end
+        end
+    end
+end
+
+--==================================================
+-- TOGGLES
+--==================================================
+
+local ToggleObjects = {}
+
+local function createToggle(title, description, key, callback)
+
+    local Holder = Instance.new("Frame")
+    Holder.Size = UDim2.new(1, -4, 0, 55)
+    Holder.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+    Holder.BorderSizePixel = 0
+    Holder.Parent = Content
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = Holder
+
+    local Name = Instance.new("TextLabel")
+    Name.Size = UDim2.new(1, -80, 0, 25)
+    Name.Position = UDim2.fromOffset(12, 5)
+    Name.BackgroundTransparency = 1
+    Name.Text = title
+    Name.TextColor3 = Color3.fromRGB(245, 245, 245)
+    Name.TextSize = 14
+    Name.Font = Enum.Font.GothamSemibold
+    Name.TextXAlignment = Enum.TextXAlignment.Left
+    Name.Parent = Holder
+
+    local Description = Instance.new("TextLabel")
+    Description.Size = UDim2.new(1, -80, 0, 18)
+    Description.Position = UDim2.fromOffset(12, 30)
+    Description.BackgroundTransparency = 1
+    Description.Text = description
+    Description.TextColor3 = Color3.fromRGB(140, 140, 150)
+    Description.TextSize = 10
+    Description.Font = Enum.Font.Gotham
+    Description.TextXAlignment = Enum.TextXAlignment.Left
+    Description.Parent = Holder
+
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.fromOffset(48, 26)
+    Button.Position = UDim2.new(1, -60, 0.5, -13)
+    Button.BackgroundColor3 = Color3.fromRGB(62, 62, 70)
+    Button.BorderSizePixel = 0
+    Button.Text = ""
+    Button.Parent = Holder
+
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(1, 0)
+    ButtonCorner.Parent = Button
+
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.fromOffset(20, 20)
+    Circle.Position = UDim2.fromOffset(3, 3)
+    Circle.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+    Circle.BorderSizePixel = 0
+    Circle.Parent = Button
+
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = Circle
+
+    local function update()
+
+        if Settings[key] then
+
+            Button.BackgroundColor3 =
+                Color3.fromRGB(65, 180, 105)
+
+            Circle.Position =
+                UDim2.new(1, -23, 0, 3)
+
+        else
+
+            Button.BackgroundColor3 =
+                Color3.fromRGB(62, 62, 70)
+
+            Circle.Position =
+                UDim2.fromOffset(3, 3)
+
+        end
+    end
+
+    Button.MouseButton1Click:Connect(function()
+
+        Settings[key] = not Settings[key]
+
+        update()
+        saveSettings()
+
+        callback(Settings[key])
+    end)
+
+    ToggleObjects[key] = update
+
+    update()
+end
+
+--==================================================
+-- CREATE TOGGLES
+--==================================================
+
+createToggle(
+    "Low Graphics",
+    "Reduce map rendering (Skins preserved)",
+    "LowGraphics",
+    applyLowGraphics
+)
+
+createToggle(
+    "Players",
+    "Hide other players locally",
+    "Players",
+    applyPlayers
+)
+
+createToggle(
+    "Map",
+    "Hide map objects locally",
+    "Map",
+    applyMap
+)
+
+createToggle(
+    "Textures",
+    "Hide map textures (Skins preserved)",
+    "Textures",
+    applyTextures
+)
+
+createToggle(
+    "Particles",
+    "Disable particles, trails and beams",
+    "Particles",
+    applyParticles
+)
+
+createToggle(
+    "Disable Effects",
+    "Disable Fire, Smoke, and Sparkles",
+    "DisableEffects",
+    applyDisableEffects
+)
+
+createToggle(
+    "Hide Typing",
+    "Hide typing indicators and chat bubbles",
+    "HideTyping",
+    applyHideTyping
+)
+
+createToggle(
+    "Sounds",
+    "Mute local game sounds",
+    "Sounds",
+    applySounds
+)
+
+--==================================================
+-- APPLY SAVED SETTINGS
+--==================================================
+
+task.spawn(function()
+
+    task.wait(1)
+
+    if Settings.LowGraphics then
+        applyLowGraphics(true)
+    end
+
+    if Settings.Players then
+        applyPlayers(true)
+    end
+
+    if Settings.Map then
+        applyMap(true)
+    end
+
+    if Settings.Textures then
+        applyTextures(true)
+    end
+
+    if Settings.Particles then
+        applyParticles(true)
+    end
+
+    if Settings.DisableEffects then
+        applyDisableEffects(true)
+    end
+
+    if Settings.HideTyping then
+        applyHideTyping(true)
+    end
+
+    if Settings.Sounds then
+        applySounds(true)
+    end
+end)
+
+--==================================================
+-- NEW PLAYER SUPPORT
+--==================================================
+
+local function setupPlayer(player)
+
+    if player == LocalPlayer then
+        return
+    end
+
+    player.CharacterAdded:Connect(function()
+
+        task.wait(0.5)
+
+        if Settings.Players then
+            applyPlayers(true)
+        end
+
+        if Settings.LowGraphics then
+            applyLowGraphics(true)
+        end
+    end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+
+--==================================================
+-- NEW OBJECT SUPPORT
+--==================================================
+
+workspace.DescendantAdded:Connect(function(object)
+
+    task.defer(function()
+
+        if not object.Parent then
+            return
+        end
+
+        -- Never modify your own character
+        if isMyCharacter(object) then
+            return
+        end
+
+        if Settings.LowGraphics then
+
+            if object:IsA("BasePart") then
+
+                if isOtherPlayerCharacter(object) then
+
+                    pcall(function()
+                        object.CastShadow = false
+                    end)
+
+                elseif isMapObject(object) then
+
+                    pcall(function()
+                        object.CastShadow = false
+                        object.Material = Enum.Material.SmoothPlastic
+                    end)
+                end
+            end
+        end
+
+        if Settings.Players
+        and isOtherPlayerCharacter(object) then
+
+            if object:IsA("BasePart") then
+                object.LocalTransparencyModifier = 1
+            elseif object:IsA("Decal")
+            or object:IsA("Texture") then
+                object.Transparency = 1
+            end
+        end
+
+        if Settings.Map
+        and isMapObject(object) then
+
+            if object:IsA("BasePart") then
+                object.LocalTransparencyModifier = 1
+            elseif object:IsA("Decal")
+            or object:IsA("Texture") then
+                object.Transparency = 1
+            end
+        end
+
+        if Settings.Textures and not isOtherPlayerCharacter(object) then
+
+            if object:IsA("Decal")
+            or object:IsA("Texture") then
+
+                object.Transparency = 1
+            end
+        end
+
+        if Settings.Particles
+        and not isMyCharacter(object) then
+
+            if object:IsA("ParticleEmitter")
+            or object:IsA("Trail")
+            or object:IsA("Beam") then
+
+                object.Enabled = false
+            end
+        end
+
+        if Settings.DisableEffects
+        and not isMyCharacter(object) then
+
+            if object:IsA("Fire")
+            or object:IsA("Smoke")
+            or object:IsA("Sparkles") then
+
+                object.Enabled = false
+            end
+        end
+
+        if Settings.HideTyping then
+            if object.Name == "TypingIndicator" or object.Name == "ChatBubble" or object:IsA("BillboardGui") and object.Name:lower():find("typing") then
+                object.Enabled = false
+            end
+        end
+
+        if Settings.Sounds
+        and object:IsA("Sound") then
+
+            object.Volume = 0
+        end
+
+    end)
+end)
+
+--==================================================
+-- KEEP OTHER PLAYERS HIDDEN
+--==================================================
+
+RunService.RenderStepped:Connect(function()
+
+    if not Settings.Players then
+        return
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+
+        if player ~= LocalPlayer and player.Character then
+
+            for _, object in ipairs(player.Character:GetDescendants()) do
+
+                if object:IsA("BasePart") then
+                    object.LocalTransparencyModifier = 1
+
+                elseif object:IsA("Decal")
+                or object:IsA("Texture") then
+
+                    object.Transparency = 1
+                end
+            end
+        end
+    end
+end)
+
+print("Local Performance Control (Updated) loaded.")
+print("Settings file:", FILE_NAME)
