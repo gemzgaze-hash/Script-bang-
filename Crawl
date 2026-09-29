@@ -1,0 +1,350 @@
+-- LocalScript | ضع هذا السكربت داخل StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- اسم ملف الحفظ بـ JSON
+local SAVE_FILE_NAME = "CrawlAnimConfig.json"
+
+-- المعرف الافتراضي الجديد الخاص بك
+local defaultAnimId = "109318260839099"
+local currentAnimId = defaultAnimId
+
+local DEFAULT_WALK_SPEED = 16
+local crawlSpeed = 8
+local isCrawling = false
+
+-- وظائف الحفظ والاسترجاع باستخدام JSON
+local function loadSavedAnimId()
+	if readfile and isfile and isfile(SAVE_FILE_NAME) then
+		local success, result = pcall(function()
+			local data = HttpService:JSONDecode(readfile(SAVE_FILE_NAME))
+			return data.AnimId
+		end)
+		if success and result then
+			return tostring(result)
+		end
+	end
+	return defaultAnimId
+end
+
+local function saveAnimId(id)
+	if writefile then
+		pcall(function()
+			local data = { AnimId = tostring(id) }
+			writefile(SAVE_FILE_NAME, HttpService:JSONEncode(data))
+		end)
+	end
+end
+
+-- قراءة معرف الأنيميشن المحفوظ إن وجد
+currentAnimId = loadSavedAnimId()
+
+-- إنشاء واجهة المستخدم GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CrawlMenuGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- 1. زر MENU (قابل للسحب)
+local toggleMenuBtn = Instance.new("TextButton")
+toggleMenuBtn.Name = "ToggleMenuButton"
+toggleMenuBtn.Size = UDim2.new(0, 50, 0, 50)
+toggleMenuBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
+toggleMenuBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+toggleMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleMenuBtn.Text = "MENU"
+toggleMenuBtn.Font = Enum.Font.GothamBold
+toggleMenuBtn.TextSize = 12
+toggleMenuBtn.Parent = screenGui
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(1, 0)
+btnCorner.Parent = toggleMenuBtn
+
+-- 2. القائمة الرئيسية
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 240, 0, 250)
+mainFrame.Position = UDim2.new(0.35, 0, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = true
+mainFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 35)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Freeze Crawl Walk"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.Parent = mainFrame
+
+-- زر التفعيل
+local toggleCrawlBtn = Instance.new("TextButton")
+toggleCrawlBtn.Size = UDim2.new(0.85, 0, 0, 35)
+toggleCrawlBtn.Position = UDim2.new(0.075, 0, 0.16, 0)
+toggleCrawlBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+toggleCrawlBtn.Text = "CRAWL: OFF"
+toggleCrawlBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleCrawlBtn.Font = Enum.Font.GothamBold
+toggleCrawlBtn.TextSize = 14
+toggleCrawlBtn.Parent = mainFrame
+
+local toggleBtnCorner = Instance.new("UICorner")
+toggleBtnCorner.CornerRadius = UDim.new(0, 8)
+toggleBtnCorner.Parent = toggleCrawlBtn
+
+-- السلايدر للسرعة
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.85, 0, 0, 20)
+speedLabel.Position = UDim2.new(0.075, 0, 0.33, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Crawl Speed: " .. crawlSpeed
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 12
+speedLabel.Parent = mainFrame
+
+local sliderBg = Instance.new("Frame")
+sliderBg.Size = UDim2.new(0.85, 0, 0, 8)
+sliderBg.Position = UDim2.new(0.075, 0, 0.43, 0)
+sliderBg.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+sliderBg.BorderSizePixel = 0
+sliderBg.Parent = mainFrame
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new((crawlSpeed - 2) / 18, 0, 1, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = sliderBg
+
+-- حقل إدخال معرف الأنيميشن (TextBox)
+local animInputLabel = Instance.new("TextLabel")
+animInputLabel.Size = UDim2.new(0.85, 0, 0, 18)
+animInputLabel.Position = UDim2.new(0.075, 0, 0.52, 0)
+animInputLabel.BackgroundTransparency = 1
+animInputLabel.Text = "Animation ID (Saved in JSON):"
+animInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+animInputLabel.Font = Enum.Font.Gotham
+animInputLabel.TextSize = 11
+animInputLabel.Parent = mainFrame
+
+local animTextBox = Instance.new("TextBox")
+animTextBox.Size = UDim2.new(0.85, 0, 0, 32)
+animTextBox.Position = UDim2.new(0.075, 0, 0.61, 0)
+animTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+animTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+animTextBox.Text = currentAnimId
+animTextBox.PlaceholderText = "Enter Animation ID..."
+animTextBox.Font = Enum.Font.Gotham
+animTextBox.TextSize = 12
+animTextBox.ClearTextOnFocus = false
+animTextBox.Parent = mainFrame
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = animTextBox
+
+-- زر الحفظ والتحديث
+local saveAnimBtn = Instance.new("TextButton")
+saveAnimBtn.Size = UDim2.new(0.85, 0, 0, 28)
+saveAnimBtn.Position = UDim2.new(0.075, 0, 0.78, 0)
+saveAnimBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+saveAnimBtn.Text = "Save & Apply Anim"
+saveAnimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveAnimBtn.Font = Enum.Font.GothamBold
+saveAnimBtn.TextSize = 12
+saveAnimBtn.Parent = mainFrame
+
+local saveBtnCorner = Instance.new("UICorner")
+saveBtnCorner.CornerRadius = UDim.new(0, 6)
+saveBtnCorner.Parent = saveAnimBtn
+
+-- السحب
+local function makeDraggable(guiObject)
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	guiObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = guiObject.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	guiObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			guiObject.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(toggleMenuBtn)
+
+toggleMenuBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- السلايدر
+local isSliding = false
+local function updateSlider(input)
+	local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+	sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+	crawlSpeed = math.floor(2 + (pos * 18))
+	speedLabel.Text = "Crawl Speed: " .. crawlSpeed
+	
+	if isCrawling and humanoid then
+		humanoid.WalkSpeed = crawlSpeed
+	end
+end
+
+sliderBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		isSliding = true
+		updateSlider(input)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		isSliding = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		updateSlider(input)
+	end
+end)
+
+-- نظام المشي والأنيميشن
+local animation = Instance.new("Animation")
+local animTrack = nil
+local renderConnection = nil
+
+local function loadCrawlAnim()
+	character = player.Character or player.CharacterAdded:Wait()
+	humanoid = character:WaitForChild("Humanoid")
+	local animator = humanoid:WaitForChild("Animator")
+	
+	-- تنظيف الأنيميشن القديم إذا كان يعمل
+	if animTrack then
+		animTrack:Stop(0)
+		animTrack:Destroy()
+		animTrack = nil
+	end
+
+	-- استخراج المعرف فقط وتنظيف النص
+	local cleanId = string.match(currentAnimId, "%d+") or currentAnimId
+	animation.AnimationId = "rbxassetid://" .. cleanId
+
+	animTrack = animator:LoadAnimation(animation)
+	animTrack.Priority = Enum.AnimationPriority.Action4
+	animTrack.Looped = true
+end
+
+player.CharacterAdded:Connect(loadCrawlAnim)
+loadCrawlAnim()
+
+local function startCrawling()
+	if not animTrack then loadCrawlAnim() end
+	
+	humanoid.WalkSpeed = crawlSpeed
+
+	if not animTrack.IsPlaying then
+		animTrack:Play(0.1)
+	end
+
+	renderConnection = RunService.RenderStepped:Connect(function()
+		if not isCrawling or not humanoid then return end
+		
+		local moveDir = humanoid.MoveDirection
+		if moveDir.Magnitude > 0.05 then
+			animTrack:AdjustSpeed(moveDir.Magnitude * (crawlSpeed / 8))
+		else
+			animTrack:AdjustSpeed(0)
+		end
+	end)
+end
+
+local function stopCrawling()
+	if renderConnection then
+		renderConnection:Disconnect()
+		renderConnection = nil
+	end
+
+	if humanoid then
+		humanoid.WalkSpeed = DEFAULT_WALK_SPEED
+	end
+
+	if animTrack and animTrack.IsPlaying then
+		animTrack:Stop(0.2)
+	end
+end
+
+toggleCrawlBtn.MouseButton1Click:Connect(function()
+	isCrawling = not isCrawling
+	if isCrawling then
+		toggleCrawlBtn.Text = "CRAWL: ON"
+		toggleCrawlBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		startCrawling()
+	else
+		toggleCrawlBtn.Text = "CRAWL: OFF"
+		toggleCrawlBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+		stopCrawling()
+	end
+end)
+
+-- زر حفظ وتطبيق الأنيميشن الجديد
+saveAnimBtn.MouseButton1Click:Connect(function()
+	local inputId = animTextBox.Text
+	if inputId and inputId ~= "" then
+		currentAnimId = inputId
+		saveAnimId(currentAnimId) -- حفظ الملف بصيغة JSON
+		
+		-- إعادة تحميل الأنيميشن المطبق
+		loadCrawlAnim()
+		if isCrawling then
+			stopCrawling()
+			startCrawling()
+		end
+		
+		saveAnimBtn.Text = "Saved Successfully!"
+		saveAnimBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		task.wait(1.5)
+		saveAnimBtn.Text = "Save & Apply Anim"
+		saveAnimBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	end
+end)
